@@ -497,7 +497,7 @@ export function SettingsPage() {
             <h2 className="text-[12px] font-medium uppercase tracking-[0.16em] text-faint">关于</h2>
           </div>
           <div className="flex items-center justify-between text-[11.5px]">
-            <span className="text-muted">Meme · v0.1.0</span>
+            <span className="text-muted">Meme · v{__APP_VERSION__}</span>
             <a
               href="https://github.com/zxy-fish/Meme"
               target="_blank"

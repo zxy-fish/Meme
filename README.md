@@ -59,6 +59,18 @@ Web 版已经通过 GitHub Pages 部署：
 
 Android Chrome 打开后可以「添加到主屏幕」，当成 App 用。数据存在本机，同步需要按下一节配置 Token。
 
+## 下载桌面版
+
+桌面安装包在 [Releases](https://github.com/zxy-fish/Meme/releases/latest) 发布：
+
+| 平台 | 文件 |
+| --- | --- |
+| macOS（Apple Silicon） | `Meme-1.0.0-arm64.dmg` |
+| macOS（Intel） | `Meme-1.0.0-x64.dmg` |
+| Windows | `Meme Setup 1.0.0.exe` |
+
+macOS 包是 ad-hoc 签名、没有经过 Apple 公证，第一次打开需要右键 → **打开**（或在「系统设置 → 隐私与安全性」里点「仍要打开」）。Windows 安装包未签名，SmartScreen 提示时选择「更多信息 → 仍要运行」。
+
 ## 分类与标签
 
 Meme 不把「年份、国家、类型」硬塞进自由标签，而是做成结构化字段，筛选、分组、统计都能直接使用：

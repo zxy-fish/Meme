@@ -213,7 +213,7 @@ export function Sidebar() {
             {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
             {theme === 'light' ? '夜间' : '日间'}
           </button>
-          <span className="text-[10px] text-faint">v0.1.0</span>
+          <span className="text-[10px] text-faint">v{__APP_VERSION__}</span>
         </div>
       </div>
     </aside>

@@ -1,4 +1,5 @@
 import path from 'node:path'
+import pkg from '../package.json' with { type: 'json' }
 import { expect, test, type Page } from '@playwright/test'
 
 function watchErrors(page: Page): string[] {
@@ -13,6 +14,7 @@ test('library renders the seeded collection', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '我的媒体库' })).toBeVisible()
   await expect(page.getByText('葬送的芙莉莲').first()).toBeVisible()
   await expect(page.getByText('进击的巨人').first()).toBeVisible()
+  await expect(page.getByText(`v${pkg.version}`).first()).toBeVisible()
   expect(errors).toEqual([])
 })
 
