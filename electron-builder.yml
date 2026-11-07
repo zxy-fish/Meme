@@ -30,6 +30,9 @@ win:
     - target: nsis
       arch: [x64]
 nsis:
+  # No spaces: GitHub rewrites spaces in asset names (to dots), which breaks
+  # the download URL that latest.yml points at.
+  artifactName: Meme-Setup-${version}.${ext}
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true

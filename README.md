@@ -66,11 +66,11 @@ Android Chrome 打开后可以「添加到主屏幕」，当成 App 用。数据
 
 | 平台 | 文件 |
 | --- | --- |
-| macOS（Apple Silicon） | `Meme-1.1.0-arm64.dmg` |
-| macOS（Intel） | `Meme-1.1.0.dmg` |
-| Windows | `Meme.Setup.1.1.0.exe` |
+| macOS（Apple Silicon） | `Meme-<版本>-arm64.dmg` |
+| macOS（Intel） | `Meme-<版本>.dmg` |
+| Windows | `Meme-Setup-<版本>.exe` |
 
-每个平台同时提供 zip 便携版（`Meme-1.1.0-arm64-mac.zip` / `Meme-1.1.0-mac.zip`）。
+每个平台同时提供 zip 便携版（`Meme-<版本>-arm64-mac.zip` / `Meme-<版本>-mac.zip`）。
 
 **应用内更新**：从 1.1.0 起，桌面版可以在「设置 → 应用更新」里检查、下载并安装新版本，装好后自动重启，不用再去网页下载。1.0.0 没有这个能力，需要手动装一次 1.1.0，之后就能一直在应用内升级。
 
