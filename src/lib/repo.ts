@@ -4,7 +4,7 @@ import { parseChapters } from './reader/chapters'
 import type { ImportedTxt } from './reader/txt'
 import { SEED_BOOKMARKS, SEED_MEDIA, SEED_NOTES, seedTimestamps } from './seed-data'
 import type { Book, Bookmark, MediaItem, Note } from './types'
-import { hashText, uuid } from './utils'
+import { hashBytes, hashText, uuid } from './utils'
 
 const SEED_KEY = 'meme:seeded:v1'
 const TV_SEED_KEY = 'meme:seed-tv:v2'
@@ -41,6 +41,7 @@ async function backfillSeedCountries(): Promise<void> {
 async function seedInternal(): Promise<void> {
   await maybeAddTvSeeds()
   await maybeSeedNotes()
+  await normalizeBookPercents()
   if (localStorage.getItem(SEED_KEY)) return
 
   const [mediaCount, bookmarkCount, bookCount] = await Promise.all([
@@ -74,6 +75,19 @@ async function seedInternal(): Promise<void> {
   }
 
   localStorage.setItem(SEED_KEY, '1')
+}
+
+async function normalizeBookPercents(): Promise<void> {
+  const books = await db.books.toArray()
+  await Promise.all(
+    books
+      .filter((book) => (book.percent ?? 0) > 100)
+      .map((book) =>
+        db.books.update(book.id, {
+          percent: Math.min(100, Math.round(((book.percent ?? 0) / 100) * 10) / 10),
+        }),
+      ),
+  )
 }
 
 async function maybeSeedNotes(): Promise<void> {
@@ -228,6 +242,7 @@ export async function importTxtBook(file: File): Promise<Book> {
     title: parsed.title,
     author: parsed.author,
     format: 'txt',
+    mediaId: existing?.mediaId,
     fileName: parsed.fileName,
     fileSize: parsed.fileSize,
     encoding: parsed.encoding,
@@ -261,12 +276,185 @@ export async function saveReadingProgress(
   percent: number,
 ): Promise<void> {
   const now = Date.now()
+  const rounded = Math.round(percent * 10) / 10
   await db.books.update(bookId, {
     lastChapter: chapter,
     lastPage: page,
-    percent: Math.round(percent * 1000) / 10,
+    percent: rounded,
     lastReadAt: now,
     updatedAt: now,
+  })
+
+  const book = await db.books.get(bookId)
+  if (!book?.mediaId) return
+  const media = await db.media.get(book.mediaId)
+  if (!media) return
+
+  const isText = book.format === 'txt' || book.format === 'epub'
+  let progressCurrent = media.progressCurrent
+  let progressTotal = media.progressTotal
+  let progressUnit = media.progressUnit
+
+  if (isText) {
+    progressCurrent = Math.min(chapter + 1, media.progressTotal ?? Number.MAX_SAFE_INTEGER)
+    progressUnit = 'chapter'
+    progressTotal = media.progressTotal ?? book.chapterCount
+  } else if (media.progressUnit === 'page' || !media.progressTotal) {
+    progressCurrent = page + 1
+    progressUnit = 'page'
+    progressTotal = book.pageCount ?? media.progressTotal
+  } else {
+    progressCurrent = Math.max(1, Math.round((rounded / 100) * media.progressTotal))
+  }
+
+  if (rounded >= 99 && progressTotal) progressCurrent = progressTotal
+
+  await db.media.update(media.id, {
+    progressCurrent,
+    progressTotal,
+    progressUnit,
+    status: rounded >= 99 ? 'done' : media.status === 'wish' && rounded > 0 ? 'doing' : media.status,
+    updatedAt: now,
+  })
+}
+
+export async function importPdfBook(file: File): Promise<Book> {
+  const buffer = await file.arrayBuffer()
+  const id = `book-${(await hashBytes(buffer)).slice(0, 40)}`
+  const existing = await db.books.get(id)
+  const now = Date.now()
+  const book: Book = {
+    id,
+    title: (await import('./reader/txt')).titleFromFileName(file.name) || '未命名 PDF',
+    format: 'pdf',
+    mediaId: existing?.mediaId,
+    fileName: file.name,
+    fileSize: file.size,
+    pageCount: existing?.pageCount ?? 0,
+    chapterCount: existing?.chapterCount ?? 0,
+    tags: existing?.tags ?? [],
+    lastPage: existing?.lastPage ?? 0,
+    percent: existing?.percent ?? 0,
+    lastReadAt: existing?.lastReadAt,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    deletedAt: undefined,
+  }
+  await db.transaction('rw', db.books, db.contents, async () => {
+    await db.books.put(book)
+    await db.contents.put({
+      id,
+      text: '',
+      chapters: [],
+      blob: new Blob([buffer], { type: 'application/pdf' }),
+      mime: 'application/pdf',
+    })
+  })
+
+  // Page counting is slow (it boots the pdf.js worker); do it after the book
+  // is usable so importing feels instant. The viewer also updates it.
+  void (async () => {
+    try {
+      const { getPdfPageCount } = await import('./reader/pdf')
+      const count = await getPdfPageCount(buffer.slice(0))
+      if (count > 0) {
+        await db.books.update(id, { pageCount: count, chapterCount: count, updatedAt: Date.now() })
+      }
+    } catch (error) {
+      console.warn('[meme] could not read PDF page count', error)
+    }
+  })()
+  return book
+}
+
+export async function importComicBook(input: { archive?: File; files?: File[] }): Promise<Book> {
+  const { readComicArchive, readComicFiles } = await import('./reader/comic')
+  const data = input.archive
+    ? await readComicArchive(input.archive)
+    : await readComicFiles(input.files ?? [])
+  const id = `book-${data.hash.slice(0, 40)}`
+  const existing = await db.books.get(id)
+  const now = Date.now()
+  const book: Book = {
+    id,
+    title: data.title,
+    format: 'comic',
+    mediaId: existing?.mediaId,
+    fileName: data.fileName,
+    fileSize: data.size,
+    pageCount: data.entries.length,
+    chapterCount: 1,
+    comicDirection: existing?.comicDirection ?? 'rtl',
+    tags: existing?.tags ?? [],
+    lastPage: existing?.lastPage ?? 0,
+    percent: existing?.percent ?? 0,
+    lastReadAt: existing?.lastReadAt,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    deletedAt: undefined,
+  }
+  await db.transaction('rw', db.books, db.pages, async () => {
+    await db.books.put(book)
+    await db.pages.where('bookId').equals(id).delete()
+    await db.pages.bulkPut(
+      data.entries.map((entry, index) => ({
+        id: `${id}:${index}`,
+        bookId: id,
+        index,
+        blob: entry.blob,
+        mime: entry.mime,
+      })),
+    )
+  })
+  return book
+}
+
+export async function linkBookToMedia(bookId: string, mediaId?: string): Promise<void> {
+  const now = Date.now()
+  const book = await db.books.get(bookId)
+  if (!book) return
+  await db.books.update(bookId, { mediaId, updatedAt: now })
+  if (!mediaId) return
+
+  const media = await db.media.get(mediaId)
+  if (!media) return
+  const isText = book.format === 'txt' || book.format === 'epub'
+  const paged = !isText
+  const total = paged ? book.pageCount : book.chapterCount
+  const current = paged ? (book.lastPage ?? 0) + 1 : (book.lastChapter ?? 0) + 1
+  const patch: Partial<MediaItem> = { updatedAt: now }
+  if (!media.progressTotal) {
+    patch.progressTotal = total
+    patch.progressUnit = paged ? 'page' : 'chapter'
+    patch.progressCurrent = Math.min(current, total ?? current)
+  } else if ((book.percent ?? 0) > 0) {
+    if ((paged && media.progressUnit === 'page') || (!paged && media.progressUnit === 'chapter')) {
+      patch.progressCurrent = Math.max(media.progressCurrent, Math.min(current, media.progressTotal))
+    } else {
+      patch.progressCurrent = Math.max(
+        media.progressCurrent,
+        Math.min(media.progressTotal, Math.round(((book.percent ?? 0) / 100) * media.progressTotal)),
+      )
+    }
+  }
+  if ((book.percent ?? 0) > 0) {
+    patch.status = (book.percent ?? 0) >= 99 ? 'done' : media.status === 'wish' ? 'doing' : media.status
+  }
+  await db.media.update(mediaId, patch)
+}
+
+export async function createMediaFromBook(book: Book): Promise<MediaItem> {
+  const paged = book.format === 'comic' || book.format === 'pdf'
+  const total = paged ? book.pageCount : book.chapterCount
+  const current = paged ? (book.lastPage ?? 0) + (book.percent ? 1 : 0) : (book.lastChapter ?? 0) + (book.percent ? 1 : 0)
+  return createMedia({
+    type: book.format === 'comic' ? 'manga' : 'novel',
+    title: book.title,
+    status: book.percent && book.percent > 0 ? 'doing' : 'wish',
+    progressCurrent: Math.min(current, total ?? current),
+    progressTotal: total,
+    progressUnit: paged ? 'page' : 'chapter',
+    tags: ['导入'],
   })
 }
 
@@ -276,20 +464,22 @@ export async function deleteBook(id: string): Promise<void> {
 }
 
 export async function purgeBook(id: string): Promise<void> {
-  await db.transaction('rw', db.books, db.contents, async () => {
+  await db.transaction('rw', db.books, db.contents, db.pages, async () => {
     await db.books.delete(id)
     await db.contents.delete(id)
+    await db.pages.where('bookId').equals(id).delete()
   })
 }
 
 export async function resetLibrary(): Promise<void> {
-  await db.transaction('rw', [db.media, db.bookmarks, db.books, db.contents, db.notes], async () => {
+  await db.transaction('rw', [db.media, db.bookmarks, db.books, db.contents, db.notes, db.pages], async () => {
     await Promise.all([
       db.media.clear(),
       db.bookmarks.clear(),
       db.books.clear(),
       db.contents.clear(),
       db.notes.clear(),
+      db.pages.clear(),
     ])
   })
   localStorage.removeItem(SEED_KEY)

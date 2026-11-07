@@ -20,6 +20,8 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import { ComicReader } from '@/components/reader/ComicReader'
+import { PdfReader } from '@/components/reader/PdfReader'
 import { db } from '@/lib/db'
 import { saveReadingProgress, updateBook } from '@/lib/repo'
 import { DEFAULT_READER, useSettings } from '@/store/settings'
@@ -323,13 +325,30 @@ export function ReaderPage() {
     )
   }
 
-  if (!data.book || !data.content) {
+  if (!data.book) {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-app px-6 text-center text-ink">
         <p className="font-display text-xl">找不到这本书</p>
         <p className="text-[12px] text-muted">可能已经被删除了，或者内容还没导入完成。</p>
         <Link to="/books" className="rounded-xl bg-accent px-4 py-2 text-[12px] font-medium text-accent-ink">
           回到书架
+        </Link>
+      </div>
+    )
+  }
+
+  if (data.book.format === 'comic') return <ComicReader book={data.book} />
+  if (data.book.format === 'pdf') return <PdfReader book={data.book} />
+
+  if (!data.content) {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-app px-6 text-center text-ink">
+        <p className="font-display text-xl">这台设备还没有这本书的文件</p>
+        <p className="max-w-sm text-[12px] leading-relaxed text-muted">
+          书架条目和进度已经同步了，但正文不会同步。到书架重新导入同一个 TXT 文件，就能接着读。
+        </p>
+        <Link to="/books" className="rounded-xl bg-accent px-4 py-2 text-[12px] font-medium text-accent-ink">
+          去书架导入
         </Link>
       </div>
     )

@@ -21,7 +21,8 @@ Meme 是一个个人媒体库（Media Memo）：记录 + 整理 + 阅读。它�
   - 电影 / 电视剧：优先 TMDB（填免费 API Key，数据更全）；没有 Key 时自动走 Bangumi。
 - **备忘录**：列表 + 编辑器，置顶、搜索、标签、Markdown（预览 / 编辑切换）、自动保存；和媒体库一起同步。
 - **网页书签**：网址、描述、标签；点击标签筛选。适合收番剧站、资料站、工具站。
-- **阅读器**：导入 TXT，自动识别 UTF-8 / GBK / GB18030 / Big5 / UTF-16；章节识别；分页翻页；宋体 / 黑体 / 楷体；纸黄 / 纯白 / 护眼 / 夜间；字号、行距、留白；目录、书签、阅读进度；左右滑动 / 方向键翻页。
+- **阅读器**：TXT / PDF / 漫画（图片文件夹、ZIP、CBZ）。TXT 自动识别编码、章节、分页；PDF 逐页渲染；漫画支持右到左 / 左到右、页码、适应高度 / 宽度；三者都自动保存进度。
+- **阅读联动**：导入文件时可以关联到媒体库里的书 / 漫画条目，阅读进度会写回条目的进度和状态；媒体详情新增「阅读」标签，可以直接继续读。
 - **多端同步**：数据存本地 IndexedDB，联网时和你的 **GitHub 私有仓库** 合并。每次同步是一次 commit，历史本身就是备份。
 - **PWA**：可以添加到 Android / iOS 主屏幕，也可以直接当桌面网页用。
 
@@ -31,9 +32,17 @@ Meme 是一个个人媒体库（Media Memo）：记录 + 整理 + 阅读。它�
 | --- | --- |
 | ![备忘录](docs/screenshots/notes.jpg) | ![阅读器](docs/screenshots/reader.jpg) |
 
-| 一键填充 | 统计 |
+| 书架（TXT / PDF / 漫画） | 漫画阅读器 |
 | --- | --- |
-| ![自动填充](docs/screenshots/autofill.jpg) | ![统计](docs/screenshots/stats.jpg) |
+| ![书架](docs/screenshots/books.jpg) | ![漫画](docs/screenshots/comic.jpg) |
+
+| PDF 阅读器 | 一键填充 |
+| --- | --- |
+| ![PDF](docs/screenshots/pdf.jpg) | ![自动填充](docs/screenshots/autofill.jpg) |
+
+| 统计 |
+| --- |
+| ![统计](docs/screenshots/stats.jpg) |
 
 | 网页书签 |
 | --- |
@@ -95,9 +104,9 @@ pnpm exec electron-builder --mac   # 或 --win
 
 同步规则：按每条记录的 `updatedAt` 做 Last-Write-Wins 合并；删除用墓碑字段，避免旧设备把已删除的条目复活。Token 只存在本机浏览器 localStorage；换设备时需要重新填一次。
 
-> 数据里不包含书籍正文，只包含书籍元数据、备忘录和阅读进度，避免仓库膨胀。
+> 数据里不包含 TXT / PDF / 漫画正文，只包含书籍元数据、备忘录和阅读进度，避免仓库膨胀。
 >
-> 书籍 ID 按正文内容哈希生成：在手机和电脑分别导入同一本 TXT，会合并成同一条记录，阅读进度可以互通。
+> 书籍 ID 按内容哈希生成：在手机和电脑分别导入同一个 TXT / PDF / ZIP 文件，会合并成同一条记录，阅读进度可以互通。
 
 ## 桌面端
 
@@ -119,15 +128,17 @@ Electron 壳加载的是同一份 `dist/`，数据仍然存在本机（`app://me
 
 ## 阅读器
 
-- **TXT**：编码探测、BOM、CRLF 归一化；按「第 X 章 / 卷 / 回 / 序章 / 番外 / Chapter N」切章；识别失败时按 6000 字切块。
-- **排版**：CSS 多栏分页，翻页位移；默认宋体、19px、1.9 行距、纸黄底；所有参数可调，自动保存。
-- **进度**：章节 + 页码 + 百分比；700ms 防抖写回；同步到其他设备。
-- **书签**：当前章节 / 页码，存进书籍元数据一起同步。
-- **EPUB / PDF**：规划中。
+- **TXT**：编码探测、BOM、CRLF 归一化；按「第 X 章 / 卷 / 回 / 序章 / 番外 / Chapter N」切章；识别失败时按 6000 字切块；CSS 多栏分页，宋体 / 黑体 / 楷体，纸黄 / 夜间 / 护眼 / 纯白。
+- **PDF**：逐页渲染，整页 / 适宽，页码滑杆；文件存在本机 IndexedDB。
+- **漫画**：图片文件夹、ZIP、CBZ；按文件名自然排序；默认日漫「右 → 左」，可切换方向；页码网格、单页 / 适宽、滑杆翻页。
+- **关联媒体库**：导入时自动匹配同名条目，也可以创建新条目；TXT 写回章节进度，PDF / 漫画写回页码进度和状态。媒体详情 → 阅读 里可以直接「继续阅读」。
+- **同步**：书籍元数据（关联、页数、进度、书签）同步；TXT / PDF / 漫画的正文不塞进 GitHub，避免仓库膨胀。在另一台设备重新导入同一个文件，会按内容哈希合并成同一本，进度接着走。
+- **EPUB**：规划中。
 
 ## 技术栈
 
 - React 19 + TypeScript + Vite 8 + Tailwind CSS 4
+- pdfjs-dist（PDF 渲染）+ fflate（ZIP / CBZ 解压）
 - Dexie（IndexedDB）本地优先存储
 - React Router（HashRouter，方便静态托管）
 - GitHub Contents API 同步
@@ -138,7 +149,8 @@ Electron 壳加载的是同一份 `dist/`，数据仍然存在本机（`app://me
 ```text
 src/
   components/       UI 组件（layout / media / bookmarks / ui）
-  pages/            页面（备忘录、媒体库、详情、书签、书架、阅读、统计、设置）
+  pages/            页面（备忘录、媒体库、详情、书签、书架、PDF / 漫画 / 文本阅读、统计、设置）
+  components/reader/ 文本 / PDF / 漫画阅读器、关联媒体库弹窗
   lib/
     db.ts           Dexie schema
     repo.ts         条目 / 书签 / 书籍的读写
@@ -158,7 +170,9 @@ src/
 - [x] TXT 阅读器、目录、书签、进度
 - [x] GitHub 私有仓库同步
 - [x] PWA
-- [ ] EPUB / PDF
+- [x] PDF / 漫画（文件夹、ZIP、CBZ）
+- [x] 阅读关联媒体库、进度写回
+- [ ] EPUB
 - [x] 桌面端 Electron 安装包（macOS / Windows）
 - [ ] Android APK（当前先用 PWA 添加到主屏幕）
 - [ ] Bangumi 收藏导入

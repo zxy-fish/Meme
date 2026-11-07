@@ -80,7 +80,7 @@ export interface Note {
   deletedAt?: number
 }
 
-export type BookFormat = 'txt' | 'epub'
+export type BookFormat = 'txt' | 'epub' | 'pdf' | 'comic'
 
 export interface ReadingMark {
   id: string
@@ -96,6 +96,9 @@ export interface Book {
   title: string
   author?: string
   format: BookFormat
+  mediaId?: string
+  pageCount?: number
+  comicDirection?: 'rtl' | 'ltr'
   fileName: string
   fileSize: number
   encoding?: string
@@ -123,6 +126,16 @@ export interface BookContent {
   id: string
   text: string
   chapters: Chapter[]
+  blob?: Blob
+  mime?: string
+}
+
+export interface ComicPage {
+  id: string
+  bookId: string
+  index: number
+  blob: Blob
+  mime: string
 }
 
 export interface LibraryBackup {

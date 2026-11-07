@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Book, BookContent, Bookmark, MediaItem, Note } from './types'
+import type { Book, BookContent, Bookmark, ComicPage, MediaItem, Note } from './types'
 
 class MemeDatabase extends Dexie {
   media!: EntityTable<MediaItem, 'id'>
@@ -7,6 +7,7 @@ class MemeDatabase extends Dexie {
   books!: EntityTable<Book, 'id'>
   contents!: EntityTable<BookContent, 'id'>
   notes!: EntityTable<Note, 'id'>
+  pages!: EntityTable<ComicPage, 'id'>
 
   constructor() {
     super('meme')
@@ -18,6 +19,10 @@ class MemeDatabase extends Dexie {
     })
     this.version(2).stores({
       notes: 'id, title, updatedAt, deletedAt, *tags, pinned',
+    })
+    this.version(3).stores({
+      books: 'id, mediaId, title, format, updatedAt, deletedAt, *tags',
+      pages: 'id, bookId, [bookId+index]',
     })
   }
 }

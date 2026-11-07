@@ -117,10 +117,12 @@ export function debounce<T extends (...args: never[]) => void>(fn: T, wait = 300
   }
 }
 
-export async function hashText(text: string): Promise<string> {
-  const bytes = new TextEncoder().encode(text)
+export async function hashBytes(data: ArrayBuffer | Uint8Array): Promise<string> {
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
   if (globalThis.crypto?.subtle) {
-    const digest = await crypto.subtle.digest('SHA-256', bytes)
+    const copy = new Uint8Array(bytes.length)
+    copy.set(bytes)
+    const digest = await crypto.subtle.digest('SHA-256', copy.buffer)
     return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
   }
   let hash = 2166136261
@@ -129,4 +131,8 @@ export async function hashText(text: string): Promise<string> {
     hash = Math.imul(hash, 16777619)
   }
   return (hash >>> 0).toString(16).padStart(8, '0')
+}
+
+export async function hashText(text: string): Promise<string> {
+  return hashBytes(new TextEncoder().encode(text))
 }

@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 
 function watchErrors(page: Page): string[] {
@@ -74,12 +75,14 @@ test('changes reader theme', async ({ page }) => {
 test('imports a TXT and opens it in the reader', async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto('/#/books')
-  const input = page.locator('input[type=file]')
+  const input = page.locator('input[accept*=".txt"]')
   await input.setInputFiles({
     name: '测试小说.txt',
     mimeType: 'text/plain',
     buffer: Buffer.from('第一章 开始\n\n你好，世界。\n\n第二章 继续\n\n再见。', 'utf8'),
   })
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('button', { name: '创建新媒体条目' }).click()
   await expect(page).toHaveURL(/#\/read\/book-/)
   await expect(page.getByRole('heading', { name: /第一章 开始/ })).toBeVisible()
   expect(errors).toEqual([])
@@ -144,6 +147,43 @@ test('notes can be created, previewed, saved and searched', async ({ page }) => 
   await page.getByPlaceholder('搜索备忘录…').fill('周末')
   await expect(page.getByText('这个周末').first()).toBeVisible()
   expect(errors).toEqual([])
+})
+
+
+test('imports a PDF, links it to a new media item and renders pages', async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto('/#/books')
+  await page
+    .locator('input[accept=".pdf,application/pdf"]')
+    .setInputFiles(path.resolve('e2e/fixtures/sample.pdf'))
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('button', { name: '创建新媒体条目' }).click()
+  await expect(page).toHaveURL(/#\/read\/book-/)
+  await expect(page.getByText(/1 \/ 2/)).toBeVisible({ timeout: 20_000 })
+  await page.getByRole('button', { name: '下一页' }).click()
+  await expect(page.getByText(/2 \/ 2/)).toBeVisible()
+  await page.waitForTimeout(800)
+
+  await page.goto('/#/')
+  await page.getByText('sample').first().click()
+  await page.getByRole('button', { name: '阅读' }).click()
+  await expect(page.getByText('继续阅读')).toBeVisible()
+  await expect(page.getByText(/2 页 · 100%/)).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test('imports comic images and pages through them', async ({ page }) => {
+  await page.goto('/#/books')
+  await page.locator('input[accept="image/*"]').first().setInputFiles([
+    path.resolve('e2e/fixtures/page1.png'),
+    path.resolve('e2e/fixtures/page2.png'),
+  ])
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('button', { name: '稍后再说' }).click()
+  await page.getByRole('link', { name: /page/ }).first().click()
+  await expect(page.getByText(/1 \/ 2/)).toBeVisible()
+  await page.getByRole('button', { name: '下一页' }).last().click()
+  await expect(page.getByText(/2 \/ 2/)).toBeVisible()
 })
 
 test.describe('mobile', () => {

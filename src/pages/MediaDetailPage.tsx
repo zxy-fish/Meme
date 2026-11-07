@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   ArrowLeft,
   Calendar,
+  BookOpen,
   Check,
   ExternalLink,
   Heart,
@@ -30,7 +31,7 @@ import {
 import { cn, percentOf } from '@/lib/utils'
 import { toast } from '@/store/toast'
 
-type Tab = 'synopsis' | 'characters' | 'notes' | 'info'
+type Tab = 'synopsis' | 'characters' | 'read' | 'notes' | 'info'
 
 export function MediaDetailPage() {
   const { id } = useParams()
@@ -39,6 +40,10 @@ export function MediaDetailPage() {
     if (!id) return null
     const found = await db.media.get(id)
     return found && !found.deletedAt ? found : null
+  }, [id])
+  const linkedBooks = useLiveQuery(async () => {
+    if (!id) return []
+    return (await db.books.filter((book) => book.mediaId === id && !book.deletedAt).toArray())
   }, [id])
   const [tab, setTab] = useState<Tab>('synopsis')
   const [editOpen, setEditOpen] = useState(false)
@@ -69,6 +74,9 @@ export function MediaDetailPage() {
   const tabs: { value: Tab; label: string; count?: number }[] = [
     { value: 'synopsis', label: '简介' },
     { value: 'characters', label: '角色', count: item.characters.length || undefined },
+    ...(item.type === 'novel' || item.type === 'manga'
+      ? [{ value: 'read' as const, label: '阅读', count: linkedBooks?.length || undefined }]
+      : []),
     { value: 'notes', label: '笔记' },
     { value: 'info', label: '信息' },
   ]
@@ -300,6 +308,52 @@ export function MediaDetailPage() {
             </div>
           ) : (
             <p className="text-[13px] text-faint">还没有角色信息。用 Bangumi 搜索添加会自动带出来。</p>
+          )
+        ) : null}
+
+        {tab === 'read' ? (
+          linkedBooks?.length ? (
+            <div className="space-y-2">
+              {linkedBooks.map((book) => (
+                <Link
+                  key={book.id}
+                  to={`/read/${book.id}`}
+                  className="flex items-center gap-3 rounded-2xl border border-line bg-surface/50 p-3 transition-colors hover:border-line-strong hover:bg-surface"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                    <BookOpen size={20} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] text-ink">{book.title}</p>
+                    <p className="mt-0.5 text-[10.5px] text-faint">
+                      {book.format === 'comic' ? '漫画' : book.format === 'pdf' ? 'PDF' : 'TXT'}
+                      {' · '}
+                      {book.format === 'comic' || book.format === 'pdf'
+                        ? `${book.pageCount ?? 0} 页`
+                        : `${book.chapterCount} 章`}
+                      {' · '}
+                      {book.percent ? `${book.percent}%` : '未开始'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-lg bg-surface-2 px-2.5 py-1.5 text-[11px] text-ink-soft">
+                    继续阅读
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-line px-5 py-10 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-2 text-muted">
+                <BookOpen size={22} />
+              </div>
+              <p className="mt-3 text-[13px] text-ink-soft">还没有关联阅读文件</p>
+              <p className="mx-auto mt-1 max-w-sm text-[11px] leading-relaxed text-faint">
+                到书架导入 TXT / PDF / 漫画，导入时关联到《{item.title}》，读到哪里就会自动更新这里的进度。
+              </p>
+              <Button size="sm" variant="secondary" className="mt-4" onClick={() => navigate('/books')}>
+                去书架导入
+              </Button>
+            </div>
           )
         ) : null}
 
