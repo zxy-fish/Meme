@@ -138,6 +138,19 @@ export interface ComicPage {
   mime: string
 }
 
+export interface ReadingSession {
+  id: string
+  bookId: string
+  mediaId?: string
+  title: string
+  format: BookFormat
+  date: string
+  seconds: number
+  startedAt: number
+  endedAt: number
+  updatedAt: number
+}
+
 export interface LibraryBackup {
   version: 1
   app: 'meme'
@@ -146,6 +159,7 @@ export interface LibraryBackup {
   bookmarks: Bookmark[]
   books: Book[]
   notes: Note[]
+  readingSessions: ReadingSession[]
 }
 
 export interface SyncConfig {

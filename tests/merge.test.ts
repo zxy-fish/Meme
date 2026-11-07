@@ -56,6 +56,7 @@ describe('mergeLibrary', () => {
       bookmarks: [],
       books: [],
       notes: [{ id: 'n1', title: 'old', content: '', tags: [], updatedAt: 10, createdAt: 1 }],
+      readingSessions: [],
     } as LibraryBackup
     const remote = {
       ...local,

@@ -1,16 +1,34 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BookOpen, CheckCircle2, Clock3, LibraryBig, Star, TrendingUp } from 'lucide-react'
+import { BookOpen, CheckCircle2, Clock3, LibraryBig, Star, Timer, TrendingUp } from 'lucide-react'
 import { Cover } from '@/components/ui/Cover'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { countryName, decadeKey, decadeLabel, decadeRank, regionLabel } from '@/lib/countries'
 import { db } from '@/lib/db'
 import {
+  dayBuckets,
+  formatBreakdown,
+  formatDuration,
+  formatDurationShort,
+  localDateKey,
+  readingStreak,
+  secondsSince,
+  topBooks,
+} from '@/lib/reading-stats'
+import {
   MEDIA_TYPES,
   STATUS_LABELS,
   STATUS_ORDER,
+  type BookFormat,
   type MediaStatus,
 } from '@/lib/types'
 import { cn } from '@/lib/utils'
+
+const FORMAT_LABELS: Record<BookFormat, string> = {
+  txt: 'TXT',
+  epub: 'EPUB',
+  pdf: 'PDF',
+  comic: '漫画',
+}
 
 const STATUS_COLORS: Record<MediaStatus, string> = {
   doing: 'var(--accent)',
@@ -46,6 +64,7 @@ export function StatsPage() {
     async () => (await db.books.toArray()).filter((item) => !item.deletedAt),
     [],
   )
+  const sessions = useLiveQuery(async () => db.readingSessions.toArray(), [])
 
   const all = media ?? []
   const rated = all.filter((item) => item.rating)
@@ -87,11 +106,37 @@ export function StatsPage() {
   const reading = bookList.filter((book) => (book.percent ?? 0) > 0 && (book.percent ?? 0) < 100)
   const finished = bookList.filter((book) => (book.percent ?? 0) >= 100)
 
+  const allSessions = sessions ?? []
+  const today = localDateKey()
+  const totalSeconds = allSessions.reduce((sum, session) => sum + session.seconds, 0)
+  const todaySeconds = allSessions
+    .filter((session) => session.date === today)
+    .reduce((sum, session) => sum + session.seconds, 0)
+  const weekSeconds = secondsSince(allSessions, 7)
+  const monthSeconds = secondsSince(allSessions, 30)
+  const streak = readingStreak(allSessions)
+  const buckets = dayBuckets(allSessions, 14)
+  const chartMax = Math.max(...buckets.map((bucket) => bucket.seconds), 1)
+  const readingFormats = formatBreakdown(allSessions)
+  const topReadingBooks = topBooks(allSessions, 4)
+
   const stats = [
     { label: '总条目', value: all.length, icon: LibraryBig, hint: '还在增加' },
     { label: '看过', value: done, icon: CheckCircle2, hint: '已完成' },
     { label: '在看', value: doing, icon: Clock3, hint: '进行中' },
     { label: '平均分', value: average, icon: Star, hint: `${rated.length} 条评分` },
+    {
+      label: '阅读时长',
+      value: formatDurationShort(totalSeconds),
+      icon: Timer,
+      hint: allSessions.length ? `${allSessions.length} 次阅读` : '还没有记录',
+    },
+    {
+      label: '今日阅读',
+      value: formatDurationShort(todaySeconds),
+      icon: Timer,
+      hint: streak ? `连续 ${streak} 天` : '本地时间',
+    },
   ]
 
   return (
@@ -113,7 +158,7 @@ export function StatsPage() {
         />
       ) : (
         <>
-          <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {stats.map((stat) => (
               <div key={stat.label} className="rounded-2xl border border-line bg-surface/55 p-4">
                 <div className="flex items-center justify-between">
@@ -232,6 +277,105 @@ export function StatsPage() {
               </div>
             </Panel>
           </div>
+
+          <Panel title="阅读时间" className="mt-4">
+            {allSessions.length ? (
+              <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+                <div>
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                    {[
+                      { label: '今日', value: formatDuration(todaySeconds) },
+                      { label: '本周', value: formatDuration(weekSeconds) },
+                      { label: '本月', value: formatDuration(monthSeconds) },
+                      { label: '连续', value: `${streak} 天` },
+                    ].map((entry) => (
+                      <div key={entry.label} className="rounded-xl border border-line bg-surface-2/40 p-3">
+                        <p className="text-[10px] text-muted">{entry.label}</p>
+                        <p className="mt-1 font-display text-[17px] font-semibold text-ink">
+                          {entry.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="mb-2 flex items-center justify-between text-[10px] text-faint">
+                      <span>最近 14 天</span>
+                      <span>{formatDuration(totalSeconds)} 累计</span>
+                    </div>
+                    <div className="flex h-24 items-end gap-1.5">
+                      {buckets.map((bucket) => (
+                        <div
+                          key={bucket.date}
+                          className="group flex h-full flex-1 items-end"
+                          title={`${bucket.label} · ${formatDuration(bucket.seconds)}`}
+                        >
+                          <div
+                            className="w-full rounded-t bg-teal/60 transition-colors group-hover:bg-teal"
+                            style={{
+                              height: `${bucket.seconds ? Math.max(5, (bucket.seconds / chartMax) * 100) : 2}%`,
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-1 flex justify-between text-[9px] text-faint">
+                      <span>{buckets[0]?.label}</span>
+                      <span>{buckets[Math.floor(buckets.length / 2)]?.label}</span>
+                      <span>{buckets.at(-1)?.label}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">
+                  <div>
+                    <p className="mb-2 text-[10px] uppercase tracking-[0.16em] text-faint">按格式</p>
+                    <div className="space-y-2">
+                      {readingFormats.map((entry) => (
+                        <div key={entry.format} className="flex items-center gap-2 text-[11.5px]">
+                          <span className="w-8 shrink-0 text-muted">
+                            {FORMAT_LABELS[entry.format] ?? entry.format}
+                          </span>
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+                            <div
+                              className="h-full rounded-full bg-accent/75"
+                              style={{
+                                width: `${Math.max(4, (entry.seconds / Math.max(totalSeconds, 1)) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="w-20 shrink-0 text-right tabular-nums text-faint">
+                            {formatDuration(entry.seconds)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-2 text-[10px] uppercase tracking-[0.16em] text-faint">最常读</p>
+                    <div className="space-y-1.5">
+                      {topReadingBooks.map((entry) => (
+                        <div key={entry.bookId} className="flex items-center gap-2 text-[11.5px]">
+                          <span className="min-w-0 flex-1 truncate text-ink-soft">{entry.title}</span>
+                          <span className="shrink-0 tabular-nums text-faint">
+                            {formatDuration(entry.seconds)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-line px-5 py-10 text-center">
+                <Timer size={22} className="mx-auto text-faint" />
+                <p className="mt-3 text-[13px] text-ink-soft">还没有阅读记录</p>
+                <p className="mt-1 text-[11px] text-faint">
+                  打开一本书读几分钟，这里会按天记录阅读时长。
+                </p>
+              </div>
+            )}
+          </Panel>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
             <Panel title="评分最高">

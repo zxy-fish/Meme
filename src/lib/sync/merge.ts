@@ -40,6 +40,7 @@ export function mergeLibrary(local: LibraryBackup, remote: LibraryBackup): Libra
     bookmarks: mergeRecords(local.bookmarks, remote.bookmarks),
     books: mergeRecords(local.books, remote.books),
     notes: mergeRecords(local.notes ?? [], remote.notes ?? []),
+    readingSessions: mergeRecords(local.readingSessions ?? [], remote.readingSessions ?? []),
   }
 }
 
@@ -52,5 +53,6 @@ export function emptyBackup(): LibraryBackup {
     bookmarks: [],
     books: [],
     notes: [],
+    readingSessions: [],
   }
 }

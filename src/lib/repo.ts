@@ -472,16 +472,21 @@ export async function purgeBook(id: string): Promise<void> {
 }
 
 export async function resetLibrary(): Promise<void> {
-  await db.transaction('rw', [db.media, db.bookmarks, db.books, db.contents, db.notes, db.pages], async () => {
-    await Promise.all([
-      db.media.clear(),
-      db.bookmarks.clear(),
-      db.books.clear(),
-      db.contents.clear(),
-      db.notes.clear(),
-      db.pages.clear(),
-    ])
-  })
+  await db.transaction(
+    'rw',
+    [db.media, db.bookmarks, db.books, db.contents, db.notes, db.pages, db.readingSessions],
+    async () => {
+      await Promise.all([
+        db.media.clear(),
+        db.bookmarks.clear(),
+        db.books.clear(),
+        db.contents.clear(),
+        db.notes.clear(),
+        db.pages.clear(),
+        db.readingSessions.clear(),
+      ])
+    },
+  )
   localStorage.removeItem(SEED_KEY)
   localStorage.removeItem(NOTES_SEED_KEY)
   localStorage.removeItem(TV_SEED_KEY)

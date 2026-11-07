@@ -1,5 +1,5 @@
 import { db, exportBackup } from '../db'
-import type { Bookmark, LibraryBackup, MediaItem, Note, SyncConfig } from '../types'
+import type { Bookmark, LibraryBackup, MediaItem, Note, ReadingSession, SyncConfig } from '../types'
 import { emptyBackup, mergeLibrary } from './merge'
 
 const API = 'https://api.github.com'
@@ -156,11 +156,14 @@ async function pushRemote(
 }
 
 export async function applyBackup(backup: LibraryBackup): Promise<void> {
-  await db.transaction('rw', [db.media, db.bookmarks, db.books, db.notes], async () => {
+  await db.transaction('rw', [db.media, db.bookmarks, db.books, db.notes, db.readingSessions], async () => {
     if (backup.media.length) await db.media.bulkPut(backup.media as MediaItem[])
     if (backup.bookmarks.length) await db.bookmarks.bulkPut(backup.bookmarks as Bookmark[])
     if (backup.books.length) await db.books.bulkPut(backup.books)
     if (backup.notes?.length) await db.notes.bulkPut(backup.notes as Note[])
+    if (backup.readingSessions?.length) {
+      await db.readingSessions.bulkPut(backup.readingSessions as ReadingSession[])
+    }
   })
 }
 

@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react'
 import { ComicReader } from '@/components/reader/ComicReader'
+import { useReadingTimer } from '@/lib/reader/useReadingTimer'
 import { PdfReader } from '@/components/reader/PdfReader'
 import { db } from '@/lib/db'
 import { saveReadingProgress, updateBook } from '@/lib/repo'
@@ -97,6 +98,8 @@ export function ReaderPage() {
       content: book && !book.deletedAt ? (content ?? null) : null,
     }
   }, [bookId])
+
+  useReadingTimer(data?.book ?? undefined)
 
   const prefs = useSettings((state) => state.reader)
   const setReader = useSettings((state) => state.setReader)

@@ -186,6 +186,19 @@ test('imports comic images and pages through them', async ({ page }) => {
   await expect(page.getByText(/2 \/ 2/)).toBeVisible()
 })
 
+
+test('records reading time and shows it in stats', async ({ page }) => {
+  await page.goto('/#/books')
+  await page.getByRole('link', { name: /夜航书店/ }).first().click()
+  await expect(page.getByRole('heading', { name: /第一章 凌晨的书店/ })).toBeVisible()
+  await page.waitForTimeout(6_000)
+  await page.goto('/#/stats')
+  await page.waitForTimeout(1_200)
+  await expect(page.getByText('阅读时间', { exact: true })).toBeVisible()
+  await expect(page.getByText('最近 14 天')).toBeVisible()
+  await expect(page.getByText('今日', { exact: true })).toBeVisible()
+})
+
 test.describe('mobile', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
 
