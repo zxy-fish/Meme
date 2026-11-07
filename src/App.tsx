@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { ensureSeedData } from '@/lib/repo'
 import { syncNow } from '@/lib/sync/github'
 import { LibraryPage } from '@/pages/LibraryPage'
+import { NotesPage } from '@/pages/NotesPage'
 import { MediaDetailPage } from '@/pages/MediaDetailPage'
 import { BookmarksPage } from '@/pages/BookmarksPage'
 import { BooksPage } from '@/pages/BooksPage'
@@ -87,6 +88,7 @@ export default function App() {
       <Route path="/read/:bookId" element={<ReaderPage />} />
       <Route element={<AppShell />}>
         <Route index element={<LibraryPage />} />
+        <Route path="/notes" element={<NotesPage />} />
         <Route path="/item/:id" element={<MediaDetailPage />} />
         <Route path="/bookmarks" element={<BookmarksPage />} />
         <Route path="/books" element={<BooksPage />} />

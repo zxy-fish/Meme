@@ -2,12 +2,13 @@ import { db } from './db'
 import sampleText from '@/assets/demo.txt?raw'
 import { parseChapters } from './reader/chapters'
 import type { ImportedTxt } from './reader/txt'
-import { SEED_BOOKMARKS, SEED_MEDIA, seedTimestamps } from './seed-data'
-import type { Book, Bookmark, MediaItem } from './types'
+import { SEED_BOOKMARKS, SEED_MEDIA, SEED_NOTES, seedTimestamps } from './seed-data'
+import type { Book, Bookmark, MediaItem, Note } from './types'
 import { hashText, uuid } from './utils'
 
 const SEED_KEY = 'meme:seeded:v1'
 const TV_SEED_KEY = 'meme:seed-tv:v2'
+const NOTES_SEED_KEY = 'meme:notes-seeded:v1'
 let seedPromise: Promise<void> | null = null
 
 export function ensureSeedData(): Promise<void> {
@@ -39,6 +40,7 @@ async function backfillSeedCountries(): Promise<void> {
 
 async function seedInternal(): Promise<void> {
   await maybeAddTvSeeds()
+  await maybeSeedNotes()
   if (localStorage.getItem(SEED_KEY)) return
 
   const [mediaCount, bookmarkCount, bookCount] = await Promise.all([
@@ -72,6 +74,20 @@ async function seedInternal(): Promise<void> {
   }
 
   localStorage.setItem(SEED_KEY, '1')
+}
+
+async function maybeSeedNotes(): Promise<void> {
+  if (localStorage.getItem(NOTES_SEED_KEY)) return
+  localStorage.setItem(NOTES_SEED_KEY, '1')
+  if ((await db.notes.count()) > 0) return
+  const now = Date.now()
+  const notes: Note[] = SEED_NOTES.map((note, index) => ({
+    ...note,
+    id: `seed-note-${index}`,
+    createdAt: now - (index + 1) * 86_400_000,
+    updatedAt: now - index * 3_600_000,
+  }))
+  await db.notes.bulkAdd(notes)
 }
 
 async function maybeAddTvSeeds(): Promise<void> {
@@ -267,12 +283,48 @@ export async function purgeBook(id: string): Promise<void> {
 }
 
 export async function resetLibrary(): Promise<void> {
-  await db.transaction('rw', [db.media, db.bookmarks, db.books, db.contents], async () => {
-    await Promise.all([db.media.clear(), db.bookmarks.clear(), db.books.clear(), db.contents.clear()])
+  await db.transaction('rw', [db.media, db.bookmarks, db.books, db.contents, db.notes], async () => {
+    await Promise.all([
+      db.media.clear(),
+      db.bookmarks.clear(),
+      db.books.clear(),
+      db.contents.clear(),
+      db.notes.clear(),
+    ])
   })
   localStorage.removeItem(SEED_KEY)
+  localStorage.removeItem(NOTES_SEED_KEY)
+  localStorage.removeItem(TV_SEED_KEY)
 }
 
 export async function updateBook(id: string, patch: Partial<Book>): Promise<void> {
   await db.books.update(id, { ...patch, updatedAt: Date.now() })
+}
+
+export async function createNote(input?: Partial<Note>): Promise<Note> {
+  const now = Date.now()
+  const note: Note = {
+    id: uuid(),
+    title: input?.title ?? '',
+    content: input?.content ?? '',
+    tags: input?.tags ?? [],
+    pinned: input?.pinned ?? false,
+    createdAt: now,
+    updatedAt: now,
+  }
+  await db.notes.add(note)
+  return note
+}
+
+export async function updateNote(id: string, patch: Partial<Note>): Promise<void> {
+  await db.notes.update(id, { ...patch, updatedAt: Date.now() })
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  const now = Date.now()
+  await db.notes.update(id, { deletedAt: now, updatedAt: now })
+}
+
+export async function toggleNotePin(id: string, pinned: boolean): Promise<void> {
+  await db.notes.update(id, { pinned, updatedAt: Date.now() })
 }

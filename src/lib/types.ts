@@ -69,6 +69,17 @@ export interface Bookmark {
   deletedAt?: number
 }
 
+export interface Note {
+  id: string
+  title: string
+  content: string
+  tags: string[]
+  pinned?: boolean
+  createdAt: number
+  updatedAt: number
+  deletedAt?: number
+}
+
 export type BookFormat = 'txt' | 'epub'
 
 export interface ReadingMark {
@@ -121,6 +132,7 @@ export interface LibraryBackup {
   media: MediaItem[]
   bookmarks: Bookmark[]
   books: Book[]
+  notes: Note[]
 }
 
 export interface SyncConfig {

@@ -1,4 +1,4 @@
-import type { Bookmark, Character, MediaItem } from './types'
+import type { Bookmark, Character, MediaItem, Note } from './types'
 
 export interface SeedMedia
   extends Omit<MediaItem, 'id' | 'createdAt' | 'updatedAt' | 'characters' | 'cast'> {
@@ -319,3 +319,40 @@ export function seedTimestamps(index: number) {
     updatedAt: now - index * 3600_000,
   }
 }
+
+export const SEED_NOTES: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>[] = [
+  {
+    title: '欢迎来到 Meme 备忘录',
+    pinned: true,
+    tags: ['使用说明'],
+    content: `## 这是左侧最前面的新页面
+
+随手记下想看的、想做的、想留住的。
+
+- [x] 支持 Markdown
+- [x] 自动保存
+- [ ] 点右上角的图钉，把它置顶
+- [ ] 试试搜索「周末」
+
+> 备忘录会和媒体库一起同步到 GitHub 私有仓库。
+`,
+  },
+  {
+    title: '这个周末',
+    tags: ['生活', '待办'],
+    content: `- [ ] 把《漫长的季节》最后几集看完
+- [ ] 整理「想看」列表
+- [ ] 去书店，别空手回来
+
+顺便找找有没有新的日剧。
+`,
+  },
+  {
+    title: '摘录',
+    tags: ['摘录'],
+    content: `> 孤独不是没有人陪你，是你不知道该把哪一部分的自己交给谁。
+
+——《夜航书店》
+`,
+  },
+]

@@ -5,7 +5,7 @@
 [![Desktop builds](https://github.com/zxy-fish/Meme/actions/workflows/desktop.yml/badge.svg)](https://github.com/zxy-fish/Meme/actions/workflows/desktop.yml)
 
 > 把看过的、在看的、想看的番剧 / 电视剧 / 电影 / 小说 / 漫画和网页，收进一个地方。
-> 本地优先，元数据一键补全，手机和电脑同步，内置一个 Kindle 手感的阅读器。
+> 本地优先，元数据一键补全，手机和电脑同步；内置备忘录和 Kindle 手感的阅读器。
 
 Meme 是一个个人媒体库（Media Memo）：记录 + 整理 + 阅读。它不做在线播放，也不替你找片源；它只负责把你已经看过和想看的那些东西，安静地收好。
 
@@ -19,6 +19,7 @@ Meme 是一个个人媒体库（Media Memo）：记录 + 整理 + 阅读。它�
 - **元数据一键填充**：搜标题 → 选条目 → 自动带出封面、原名、年份、话数、制作公司、角色、CV、简介、Bangumi / TMDB 链接。
   - 番剧 / 漫画 / 小说：Bangumi（主力），AniList（兜底）。
   - 电影 / 电视剧：优先 TMDB（填免费 API Key，数据更全）；没有 Key 时自动走 Bangumi。
+- **备忘录**：列表 + 编辑器，置顶、搜索、标签、Markdown（预览 / 编辑切换）、自动保存；和媒体库一起同步。
 - **网页书签**：网址、描述、标签；点击标签筛选。适合收番剧站、资料站、工具站。
 - **阅读器**：导入 TXT，自动识别 UTF-8 / GBK / GB18030 / Big5 / UTF-16；章节识别；分页翻页；宋体 / 黑体 / 楷体；纸黄 / 纯白 / 护眼 / 夜间；字号、行距、留白；目录、书签、阅读进度；左右滑动 / 方向键翻页。
 - **多端同步**：数据存本地 IndexedDB，联网时和你的 **GitHub 私有仓库** 合并。每次同步是一次 commit，历史本身就是备份。
@@ -26,13 +27,17 @@ Meme 是一个个人媒体库（Media Memo）：记录 + 整理 + 阅读。它�
 
 ## 截图
 
-| 阅读器（手机） | 一键填充 |
+| 备忘录 | 阅读器（手机） |
 | --- | --- |
-| ![阅读器](docs/screenshots/reader.jpg) | ![自动填充](docs/screenshots/autofill.jpg) |
+| ![备忘录](docs/screenshots/notes.jpg) | ![阅读器](docs/screenshots/reader.jpg) |
 
-| 网页书签 | 统计 |
+| 一键填充 | 统计 |
 | --- | --- |
-| ![书签](docs/screenshots/bookmarks.jpg) | ![统计](docs/screenshots/stats.jpg) |
+| ![自动填充](docs/screenshots/autofill.jpg) | ![统计](docs/screenshots/stats.jpg) |
+
+| 网页书签 |
+| --- |
+| ![书签](docs/screenshots/bookmarks.jpg) |
 
 ## 在线使用
 
@@ -71,7 +76,7 @@ pnpm build
 pnpm exec electron-builder --mac   # 或 --win
 ```
 
-首次打开会生成一组示例数据（10 个条目、8 个书签、一本示例小说）。示例封面是脚本生成的占位海报，真实搜索会使用 Bangumi / TMDB 的封面。
+首次打开会生成一组示例数据（10 个条目、8 个书签、一本示例小说、3 条示例备忘录）。示例封面是脚本生成的占位海报，真实搜索会使用 Bangumi / TMDB 的封面。
 
 ## 配置 GitHub 同步
 
@@ -90,7 +95,7 @@ pnpm exec electron-builder --mac   # 或 --win
 
 同步规则：按每条记录的 `updatedAt` 做 Last-Write-Wins 合并；删除用墓碑字段，避免旧设备把已删除的条目复活。Token 只存在本机浏览器 localStorage；换设备时需要重新填一次。
 
-> 数据里不包含书籍正文，只包含书籍元数据和阅读进度，避免仓库膨胀。
+> 数据里不包含书籍正文，只包含书籍元数据、备忘录和阅读进度，避免仓库膨胀。
 >
 > 书籍 ID 按正文内容哈希生成：在手机和电脑分别导入同一本 TXT，会合并成同一条记录，阅读进度可以互通。
 
@@ -133,7 +138,7 @@ Electron 壳加载的是同一份 `dist/`，数据仍然存在本机（`app://me
 ```text
 src/
   components/       UI 组件（layout / media / bookmarks / ui）
-  pages/            页面（媒体库、详情、书签、书架、阅读、统计、设置）
+  pages/            页面（备忘录、媒体库、详情、书签、书架、阅读、统计、设置）
   lib/
     db.ts           Dexie schema
     repo.ts         条目 / 书签 / 书籍的读写
@@ -148,6 +153,7 @@ src/
 - [x] 媒体库 CRUD、筛选、详情、角色 / CV
 - [x] 按年代 / 国家 / 类型分类、分组和统计
 - [x] 网页书签 + 标签
+- [x] 备忘录（置顶 / 搜索 / 标签 / Markdown / 自动保存）
 - [x] Bangumi / AniList / TMDB 搜索与一键填充
 - [x] TXT 阅读器、目录、书签、进度
 - [x] GitHub 私有仓库同步

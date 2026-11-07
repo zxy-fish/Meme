@@ -47,6 +47,26 @@ describe('mergeRecords', () => {
 })
 
 describe('mergeLibrary', () => {
+  it('merges notes by updatedAt', () => {
+    const local = {
+      version: 1,
+      app: 'meme',
+      exportedAt: 1,
+      media: [],
+      bookmarks: [],
+      books: [],
+      notes: [{ id: 'n1', title: 'old', content: '', tags: [], updatedAt: 10, createdAt: 1 }],
+    } as LibraryBackup
+    const remote = {
+      ...local,
+      exportedAt: 2,
+      notes: [{ id: 'n1', title: 'new', content: '', tags: [], updatedAt: 20, createdAt: 1 }],
+    } as LibraryBackup
+    const merged = mergeLibrary(local, remote)
+    expect(merged.notes).toHaveLength(1)
+    expect(merged.notes[0].title).toBe('new')
+  })
+
   it('merges each collection independently', () => {
     const local = {
       version: 1,

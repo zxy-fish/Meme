@@ -120,8 +120,44 @@ test('stats include decade and country breakdowns', async ({ page }) => {
   await expect(page.getByText('2020年代').first()).toBeVisible()
 })
 
+
+test('notes can be created, previewed, saved and searched', async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto('/#/notes')
+  await expect(page.getByRole('heading', { name: '备忘录', exact: true })).toBeVisible()
+  await expect(page.getByText('欢迎来到 Meme 备忘录').first()).toBeVisible()
+
+  await page.getByRole('button', { name: '新建备忘录' }).first().click()
+  await expect(page.getByPlaceholder('标题')).toHaveValue('')
+  await page.getByPlaceholder('标题').fill('E2E 备忘录')
+  await page.locator('textarea[placeholder="开始写点什么…"]').fill('## 小标题\n\n- [ ] 待办事项')
+  await page.waitForTimeout(900)
+  await page.getByRole('button', { name: '预览' }).click()
+  await expect(page.getByText('小标题', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: '编辑' }).click()
+  await expect(page.getByPlaceholder('标题')).toHaveValue('E2E 备忘录')
+
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(900)
+  await expect(page.getByText('E2E 备忘录').first()).toBeVisible()
+  await page.getByPlaceholder('搜索备忘录…').fill('周末')
+  await expect(page.getByText('这个周末').first()).toBeVisible()
+  expect(errors).toEqual([])
+})
+
 test.describe('mobile', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+
+
+  test('notes list opens the editor and goes back', async ({ page }) => {
+    await page.goto('/#/notes')
+    await expect(page.getByText('欢迎来到 Meme 备忘录').first()).toBeVisible()
+    await page.getByText('欢迎来到 Meme 备忘录').first().click()
+    await expect(page.getByRole('button', { name: '返回备忘录列表' })).toBeVisible()
+    await page.getByRole('button', { name: '返回备忘录列表' }).click()
+    await expect(page.getByPlaceholder('搜索备忘录…')).toBeVisible()
+  })
 
   test('bottom navigation and floating action work', async ({ page }) => {
     const errors = watchErrors(page)

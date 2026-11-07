@@ -79,17 +79,19 @@ export function SettingsPage() {
   const [resetConfirm, setResetConfirm] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
   const counts = useLiveQuery(async () => {
-    const [media, bookmarks, books] = await Promise.all([
+    const [media, bookmarks, books, notes] = await Promise.all([
       db.media.toArray(),
       db.bookmarks.toArray(),
       db.books.toArray(),
+      db.notes.toArray(),
     ])
     return {
       media: media.filter((item) => !item.deletedAt).length,
       bookmarks: bookmarks.filter((item) => !item.deletedAt).length,
       books: books.filter((item) => !item.deletedAt).length,
+      notes: notes.filter((item) => !item.deletedAt).length,
     }
-  }, []) ?? { media: 0, bookmarks: 0, books: 0 }
+  }, []) ?? { media: 0, bookmarks: 0, books: 0, notes: 0 }
 
   useEffect(() => {
     const onSynced = () => setLastSync(Number(localStorage.getItem('meme:lastSync') ?? 0))
@@ -118,7 +120,7 @@ export function SettingsPage() {
       setLastSync(result.at)
       setMessage({
         tone: 'ok',
-        text: `同步完成：${result.media} 条目 / ${result.bookmarks} 书签 / ${result.books} 本书。${result.pushed ? '已推送。' : ''}`,
+        text: `同步完成：${result.media} 条目 / ${result.bookmarks} 书签 / ${result.books} 本书 / ${result.notes} 条备忘录。${result.pushed ? '已推送。' : ''}`,
       })
       toast('同步完成', 'success')
       window.dispatchEvent(new Event('meme:synced'))
@@ -167,6 +169,8 @@ export function SettingsPage() {
     }
     await resetLibrary()
     localStorage.setItem('meme:seeded:v1', '1')
+    localStorage.setItem('meme:seed-tv:v2', '1')
+    localStorage.setItem('meme:notes-seeded:v1', '1')
     toast('本地数据已清空', 'success')
     window.setTimeout(() => window.location.reload(), 500)
   }
@@ -390,7 +394,7 @@ export function SettingsPage() {
             />
           </div>
           <p className="mt-3 text-[11px] text-faint">
-            当前：{counts.media} 条目 · {counts.bookmarks} 书签 · {counts.books} 本书。导出包含条目与阅读进度，不包含书籍正文。
+            当前：{counts.media} 条目 · {counts.bookmarks} 书签 · {counts.books} 本书 · {counts.notes} 条备忘录。导出包含条目、备忘录与阅读进度，不包含书籍正文。
           </p>
         </section>
 

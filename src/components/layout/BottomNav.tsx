@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom'
-import { BarChart3, Bookmark, BookOpen, LibraryBig, Settings2 } from 'lucide-react'
+import { BarChart3, Bookmark, BookOpen, LibraryBig, Settings2, StickyNote } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const items = [
+  { to: '/notes', label: '备忘录', icon: StickyNote },
   { to: '/', label: '媒体库', icon: LibraryBig },
   { to: '/bookmarks', label: '书签', icon: Bookmark },
   { to: '/books', label: '阅读', icon: BookOpen },

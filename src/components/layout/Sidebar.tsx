@@ -8,6 +8,7 @@ import {
   LibraryBig,
   Moon,
   Settings2,
+  StickyNote,
   Sun,
 } from 'lucide-react'
 import { db } from '@/lib/db'
@@ -45,15 +46,17 @@ export function Sidebar() {
   const setTheme = useSettings((state) => state.setTheme)
   const sync = useSettings((state) => state.sync)
   const counts = useLiveQuery(async () => {
-    const [media, bookmarks, books] = await Promise.all([
+    const [media, bookmarks, books, notes] = await Promise.all([
       db.media.toArray(),
       db.bookmarks.toArray(),
       db.books.toArray(),
+      db.notes.toArray(),
     ])
     return {
       media: media.filter((item) => !item.deletedAt).length,
       bookmarks: bookmarks.filter((item) => !item.deletedAt).length,
       books: books.filter((item) => !item.deletedAt).length,
+      notes: notes.filter((item) => !item.deletedAt).length,
       doing: media.filter((item) => !item.deletedAt && item.status === 'doing').length,
     }
   }, [])
@@ -61,6 +64,7 @@ export function Sidebar() {
   const lastSync = Number(localStorage.getItem('meme:lastSync') ?? 0)
 
   const primary = [
+    { to: '/notes', label: '备忘录', icon: StickyNote, count: counts?.notes },
     { to: '/', label: '媒体库', icon: LibraryBig, count: counts?.media },
     { to: '/bookmarks', label: '书签', icon: Bookmark, count: counts?.bookmarks },
     { to: '/books', label: '阅读', icon: BookOpen, count: counts?.books },

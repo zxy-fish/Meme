@@ -1,5 +1,5 @@
 import { db, exportBackup } from '../db'
-import type { Bookmark, LibraryBackup, MediaItem, SyncConfig } from '../types'
+import type { Bookmark, LibraryBackup, MediaItem, Note, SyncConfig } from '../types'
 import { emptyBackup, mergeLibrary } from './merge'
 
 const API = 'https://api.github.com'
@@ -14,6 +14,7 @@ export interface SyncResult {
   media: number
   bookmarks: number
   books: number
+  notes: number
   pushed: boolean
   remoteFound: boolean
   at: number
@@ -155,10 +156,11 @@ async function pushRemote(
 }
 
 export async function applyBackup(backup: LibraryBackup): Promise<void> {
-  await db.transaction('rw', [db.media, db.bookmarks, db.books], async () => {
+  await db.transaction('rw', [db.media, db.bookmarks, db.books, db.notes], async () => {
     if (backup.media.length) await db.media.bulkPut(backup.media as MediaItem[])
     if (backup.bookmarks.length) await db.bookmarks.bulkPut(backup.bookmarks as Bookmark[])
     if (backup.books.length) await db.books.bulkPut(backup.books)
+    if (backup.notes?.length) await db.notes.bulkPut(backup.notes as Note[])
   })
 }
 
@@ -200,10 +202,12 @@ async function runSync(config: SyncConfig): Promise<SyncResult> {
 
   localStorage.setItem('meme:lastSync', String(Date.now()))
   return {
-    merged: merged.media.length + merged.bookmarks.length + merged.books.length,
+    merged:
+      merged.media.length + merged.bookmarks.length + merged.books.length + (merged.notes?.length ?? 0),
     media: merged.media.length,
     bookmarks: merged.bookmarks.length,
     books: merged.books.length,
+    notes: merged.notes?.length ?? 0,
     pushed,
     remoteFound: Boolean(remote.data),
     at: Date.now(),
