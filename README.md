@@ -66,8 +66,10 @@ Android Chrome 打开后可以「添加到主屏幕」，当成 App 用。数据
 | 平台 | 文件 |
 | --- | --- |
 | macOS（Apple Silicon） | `Meme-1.0.0-arm64.dmg` |
-| macOS（Intel） | `Meme-1.0.0-x64.dmg` |
-| Windows | `Meme Setup 1.0.0.exe` |
+| macOS（Intel） | `Meme-1.0.0.dmg` |
+| Windows | `Meme.Setup.1.0.0.exe` |
+
+每个平台同时提供 zip 便携版（`Meme-1.0.0-arm64-mac.zip` / `Meme-1.0.0-mac.zip`）。
 
 macOS 包是 ad-hoc 签名、没有经过 Apple 公证，第一次打开需要右键 → **打开**（或在「系统设置 → 隐私与安全性」里点「仍要打开」）。Windows 安装包未签名，SmartScreen 提示时选择「更多信息 → 仍要运行」。
 
