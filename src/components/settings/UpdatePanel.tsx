@@ -27,6 +27,8 @@ function StatusLine({ state }: { state: UpdateState }) {
           v{state.version} 已下载，重启后生效
         </span>
       )
+    case 'installing':
+      return <span className="text-ink">正在安装，应用即将重启…</span>
     case 'error':
       return (
         <span className="inline-flex items-center gap-1 text-danger">
@@ -66,8 +68,11 @@ export function UpdatePanel() {
   // exists in the desktop shell.
   if (!canSelfUpdate || !desktopBridge) return null
 
-  const isMac = desktopBridge.platform === 'darwin'
-  const checking = busy || state.status === 'checking' || state.status === 'downloading'
+  const checking =
+    busy ||
+    state.status === 'checking' ||
+    state.status === 'downloading' ||
+    state.status === 'installing'
 
   async function check() {
     setBusy(true)
@@ -132,9 +137,7 @@ export function UpdatePanel() {
       {state.status === 'error' ? (
         <p className="mt-3 text-[10.5px] leading-relaxed text-faint">
           {state.message ? `${state.message}。` : ''}
-          {isMac
-            ? 'macOS 安装包是 ad-hoc 签名，系统可能拒绝自动安装；可以到下载页手动更新。'
-            : '可以到下载页手动更新。'}
+          也可以到下载页手动更新。
           <a
             href={RELEASES_URL}
             target="_blank"
@@ -146,7 +149,7 @@ export function UpdatePanel() {
         </p>
       ) : (
         <p className="mt-3 text-[10.5px] leading-relaxed text-faint">
-          新版本会在后台下载，安装完成后自动重启。网页版无需手动更新。
+          新版本会先在后台下载并校验；点「重启并安装」后应用会自动替换并重新打开。网页版无需手动更新。
         </p>
       )}
     </section>

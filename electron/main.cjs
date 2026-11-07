@@ -24,38 +24,55 @@ function publishUpdateState(patch) {
   }
 }
 
-function setupUpdater() {
-  if (!autoUpdater || !app.isPackaged) return
-  // Set the feed explicitly so updates work even if app-update.yml is absent
-  // (e.g. a --dir build or a hand-made bundle).
-  try {
-    autoUpdater.setFeedURL({ provider: 'github', owner: 'zxy-fish', repo: 'Meme' })
-  } catch (error) {
-    console.warn('[meme] could not set update feed:', error?.message ?? error)
-  }
-  autoUpdater.autoDownload = false
-  autoUpdater.autoInstallOnAppQuit = true
-  autoUpdater.on('checking-for-update', () => publishUpdateState({ status: 'checking', percent: 0 }))
-  autoUpdater.on('update-available', (info) =>
-    publishUpdateState({ status: 'available', version: info.version, percent: 0, message: null }),
-  )
-  autoUpdater.on('update-not-available', () =>
-    publishUpdateState({ status: 'latest', version: app.getVersion(), percent: 0, message: null }),
-  )
-  autoUpdater.on('download-progress', (progress) =>
-    publishUpdateState({ status: 'downloading', percent: Math.round(progress.percent ?? 0) }),
-  )
-  autoUpdater.on('update-downloaded', (info) =>
-    publishUpdateState({ status: 'downloaded', version: info.version, percent: 100, message: null }),
-  )
-  autoUpdater.on('error', (error) =>
-    publishUpdateState({ status: 'error', message: String(error?.message ?? error) }),
-  )
+let updateBackend = null
 
-  // Look for a new version shortly after launch, but never block startup.
+/** macOS uses our own installer; Windows/Linux keep electron-updater. */
+function setupUpdater() {
+  if (!app.isPackaged) return
+
+  if (process.platform === 'darwin') {
+    const { createMacUpdater } = require('./mac-updater.cjs')
+    updateBackend = createMacUpdater({ onState: (patch) => publishUpdateState(patch) })
+  } else if (autoUpdater) {
+    // Set the feed explicitly so updates work even if app-update.yml is absent
+    // (e.g. a --dir build or a hand-made bundle).
+    try {
+      autoUpdater.setFeedURL({ provider: 'github', owner: 'zxy-fish', repo: 'Meme' })
+    } catch (error) {
+      console.warn('[meme] could not set update feed:', error?.message ?? error)
+    }
+    autoUpdater.autoDownload = false
+    autoUpdater.autoInstallOnAppQuit = true
+    autoUpdater.on('checking-for-update', () => publishUpdateState({ status: 'checking', percent: 0 }))
+    autoUpdater.on('update-available', (info) =>
+      publishUpdateState({ status: 'available', version: info.version, percent: 0, message: null }),
+    )
+    autoUpdater.on('update-not-available', () =>
+      publishUpdateState({ status: 'latest', version: app.getVersion(), percent: 0, message: null }),
+    )
+    autoUpdater.on('download-progress', (progress) =>
+      publishUpdateState({ status: 'downloading', percent: Math.round(progress.percent ?? 0) }),
+    )
+    autoUpdater.on('update-downloaded', (info) =>
+      publishUpdateState({ status: 'downloaded', version: info.version, percent: 100, message: null }),
+    )
+    autoUpdater.on('error', (error) =>
+      publishUpdateState({ status: 'error', message: String(error?.message ?? error) }),
+    )
+    updateBackend = {
+      check: () => autoUpdater.checkForUpdates(),
+      download: () => autoUpdater.downloadUpdate(),
+      install: () => autoUpdater.quitAndInstall(),
+    }
+  }
+
+  if (!updateBackend) return
+  // Look for a new version shortly after launch, but never block startup and
+  // never surface an error the user did not ask for.
   setTimeout(() => {
-    autoUpdater.checkForUpdates().catch((error) => {
+    updateBackend.check().catch((error) => {
       console.warn('[meme] update check failed:', error?.message ?? error)
+      publishUpdateState({ status: 'idle', percent: 0, message: null })
     })
   }, 5000)
 }
@@ -64,18 +81,17 @@ ipcMain.handle('app:info', () => ({
   version: app.getVersion(),
   platform: process.platform,
   packaged: app.isPackaged,
-  updatable: Boolean(autoUpdater) && app.isPackaged,
+  updatable: Boolean(updateBackend),
 }))
 
 ipcMain.handle('update:state', () => ({ ...updateState }))
 
 ipcMain.handle('update:check', async () => {
-  if (!autoUpdater || !app.isPackaged) {
-    return { status: 'unsupported', message: '开发模式下不检查更新' }
+  if (!updateBackend) {
+    return { status: 'unsupported', message: '当前环境不支持自动更新' }
   }
   try {
-    publishUpdateState({ status: 'checking', percent: 0, message: null })
-    await autoUpdater.checkForUpdates()
+    await updateBackend.check()
   } catch (error) {
     publishUpdateState({ status: 'error', message: String(error?.message ?? error) })
   }
@@ -83,10 +99,9 @@ ipcMain.handle('update:check', async () => {
 })
 
 ipcMain.handle('update:download', async () => {
-  if (!autoUpdater || !app.isPackaged) return { ...updateState }
+  if (!updateBackend) return { ...updateState }
   try {
-    publishUpdateState({ status: 'downloading', percent: 0, message: null })
-    await autoUpdater.downloadUpdate()
+    await updateBackend.download()
   } catch (error) {
     publishUpdateState({ status: 'error', message: String(error?.message ?? error) })
   }
@@ -94,8 +109,11 @@ ipcMain.handle('update:download', async () => {
 })
 
 ipcMain.handle('update:install', () => {
-  if (!autoUpdater || !app.isPackaged) return false
-  setImmediate(() => autoUpdater.quitAndInstall())
+  if (!updateBackend) return false
+  Promise.resolve(updateBackend.install()).catch((error) => {
+    console.warn('[meme] update install failed:', error?.message ?? error)
+    publishUpdateState({ status: 'error', message: String(error?.message ?? error) })
+  })
   return true
 })
 
