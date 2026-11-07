@@ -14,3 +14,6 @@ playwright-report
 *.log
 .runtime
 .shots/
+.electron-cache
+.electron-builder-cache
+.home/

@@ -1,5 +1,7 @@
 import { db } from './db'
-import { readSampleText, type ImportedTxt } from './reader/txt'
+import sampleText from '@/assets/demo.txt?raw'
+import { parseChapters } from './reader/chapters'
+import type { ImportedTxt } from './reader/txt'
 import { SEED_BOOKMARKS, SEED_MEDIA, seedTimestamps } from './seed-data'
 import type { Book, Bookmark, MediaItem } from './types'
 import { uuid } from './utils'
@@ -49,20 +51,18 @@ async function seedInternal(): Promise<void> {
 }
 
 async function seedDemoBook() {
-  const base = typeof document !== 'undefined' ? document.baseURI : 'http://localhost/'
-  const parsed = await readSampleText(new URL('samples/demo.txt', base).href)
-  if (!parsed) return
   const now = Date.now()
   const id = 'demo-book'
+  const chapters = parseChapters(sampleText)
   const book: Book = {
     id,
-    title: parsed.title,
-    author: parsed.author,
+    title: '夜航书店',
+    author: 'Meme 示例',
     format: 'txt',
-    fileName: parsed.fileName,
-    fileSize: parsed.fileSize,
-    encoding: parsed.encoding,
-    chapterCount: parsed.chapters.length,
+    fileName: '夜航书店.txt',
+    fileSize: new TextEncoder().encode(sampleText).length,
+    encoding: 'UTF-8',
+    chapterCount: chapters.length,
     tags: ['示例', '小说'],
     lastChapter: 0,
     lastPage: 0,
@@ -72,11 +72,7 @@ async function seedDemoBook() {
   }
   await db.transaction('rw', db.books, db.contents, async () => {
     await db.books.put(book)
-    await db.contents.put({
-      id,
-      text: parsed.text,
-      chapters: parsed.chapters.map(({ title, start, end, index }) => ({ title, start, end, index })),
-    })
+    await db.contents.put({ id, text: sampleText, chapters })
   })
 }
 

@@ -29,6 +29,14 @@ Meme 是一个个人媒体库（Media Memo）：记录 + 整理 + 阅读。它�
 | --- |
 | ![书签](docs/screenshots/bookmarks.jpg) |
 
+## 在线使用
+
+Web 版已经通过 GitHub Pages 部署：
+
+**<https://zxy-fish.github.io/Meme/>**
+
+Android Chrome 打开后可以「添加到主屏幕」，当成 App 用。数据存在本机，同步需要按下一节配置 Token。
+
 ## 快速开始
 
 要求 Node.js 22+ 和 pnpm。
@@ -40,6 +48,10 @@ pnpm build        # 产出 dist/
 pnpm preview
 pnpm test         # 单元测试（合并、章节、编码）
 pnpm e2e          # Playwright（本机默认使用 Edge）
+
+# 桌面端（macOS / Windows）
+pnpm build
+pnpm exec electron-builder --mac   # 或 --win
 ```
 
 首次打开会生成一组示例数据（8 个条目、8 个书签、一本示例小说）。示例封面是脚本生成的占位海报，真实搜索会使用 Bangumi / TMDB 的封面。
@@ -62,6 +74,14 @@ pnpm e2e          # Playwright（本机默认使用 Edge）
 同步规则：按每条记录的 `updatedAt` 做 Last-Write-Wins 合并；删除用墓碑字段，避免旧设备把已删除的条目复活。Token 只存在本机浏览器 localStorage；换设备时需要重新填一次。
 
 > 数据里不包含书籍正文，只包含书籍元数据和阅读进度，避免仓库膨胀。
+
+## 桌面端
+
+Electron 壳加载的是同一份 `dist/`，数据仍然存在本机（`app://meme` 自定义协议，IndexedDB 可用）。
+
+- 本地构建：`pnpm build && pnpm exec electron-builder --mac`（或 `--win`），产物在 `release/`。
+- 云端出包：GitHub Actions 的 **Desktop builds** 工作流，手动触发或打 `v*` tag，下载 Artifacts。
+- 安装包没有做代码签名：macOS 首次打开需要右键 → 打开；Windows 可能提示 SmartScreen。个人使用足够，公开分发需要自己补签名证书。
 
 ## 元数据
 
@@ -113,8 +133,8 @@ src/
 - [x] GitHub 私有仓库同步
 - [x] PWA
 - [ ] EPUB / PDF
-- [ ] 桌面端 Electron 安装包（macOS / Windows）
-- [ ] Android APK
+- [x] 桌面端 Electron 安装包（macOS / Windows）
+- [ ] Android APK（当前先用 PWA 添加到主屏幕）
 - [ ] Bangumi 收藏导入
 - [ ] 当季新番日历
 - [ ] 阅读划线 / 笔记

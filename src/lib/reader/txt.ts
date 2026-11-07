@@ -32,23 +32,3 @@ export async function readTxtFile(file: File): Promise<ImportedTxt> {
     fileName: file.name,
   }
 }
-
-export async function readSampleText(url: string): Promise<ImportedTxt | null> {
-  try {
-    const response = await fetch(url)
-    if (!response.ok) return null
-    const text = await response.text()
-    const chapters = parseChapters(text)
-    return {
-      title: '夜航书店',
-      author: 'Meme 示例',
-      text,
-      encoding: 'UTF-8',
-      chapters,
-      fileSize: new TextEncoder().encode(text).length,
-      fileName: '夜航书店.txt',
-    }
-  } catch {
-    return null
-  }
-}
