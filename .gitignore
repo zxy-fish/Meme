@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-electron
+release
+.pnpm-store
+.DS_Store
+*.local
+.env
+.env.*
+!.env.example
+coverage
+test-results
+playwright-report
+*.log
+.runtime
+.shots/

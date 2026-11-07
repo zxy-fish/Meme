@@ -1,0 +1,234 @@
+import { useLiveQuery } from 'dexie-react-hooks'
+import { BookOpen, CheckCircle2, Clock3, LibraryBig, Star, TrendingUp } from 'lucide-react'
+import { Cover } from '@/components/ui/Cover'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { db } from '@/lib/db'
+import {
+  MEDIA_TYPES,
+  STATUS_LABELS,
+  STATUS_ORDER,
+  TYPE_LABELS,
+  type MediaStatus,
+} from '@/lib/types'
+import { cn } from '@/lib/utils'
+
+const STATUS_COLORS: Record<MediaStatus, string> = {
+  doing: 'var(--accent)',
+  wish: 'var(--teal)',
+  done: 'var(--ok)',
+  onhold: 'var(--faint)',
+  dropped: 'var(--danger)',
+}
+
+function Panel({
+  title,
+  children,
+  className,
+}: {
+  title: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <section className={cn('rounded-2xl border border-line bg-surface/50 p-5', className)}>
+      <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-faint">{title}</h2>
+      <div className="mt-4">{children}</div>
+    </section>
+  )
+}
+
+export function StatsPage() {
+  const media = useLiveQuery(
+    async () => (await db.media.toArray()).filter((item) => !item.deletedAt),
+    [],
+  )
+  const books = useLiveQuery(
+    async () => (await db.books.toArray()).filter((item) => !item.deletedAt),
+    [],
+  )
+
+  const all = media ?? []
+  const rated = all.filter((item) => item.rating)
+  const average = rated.length
+    ? (rated.reduce((sum, item) => sum + (item.rating ?? 0), 0) / rated.length).toFixed(1)
+    : '—'
+  const done = all.filter((item) => item.status === 'done').length
+  const doing = all.filter((item) => item.status === 'doing').length
+  const topRated = [...rated].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 5)
+
+  const statusCounts = STATUS_ORDER.map((status) => ({
+    status,
+    count: all.filter((item) => item.status === status).length,
+  }))
+  const statusTotal = all.length || 1
+
+  let cursor = 0
+  const donut = statusCounts
+    .filter((entry) => entry.count > 0)
+    .map((entry) => {
+      const from = cursor
+      cursor += (entry.count / statusTotal) * 100
+      return `${STATUS_COLORS[entry.status]} ${from}% ${cursor}%`
+    })
+    .join(', ')
+
+  const bookList = books ?? []
+  const reading = bookList.filter((book) => (book.percent ?? 0) > 0 && (book.percent ?? 0) < 100)
+  const finished = bookList.filter((book) => (book.percent ?? 0) >= 100)
+
+  const stats = [
+    { label: '总条目', value: all.length, icon: LibraryBig, hint: '还在增加' },
+    { label: '看过', value: done, icon: CheckCircle2, hint: '已完成' },
+    { label: '在看', value: doing, icon: Clock3, hint: '进行中' },
+    { label: '平均分', value: average, icon: Star, hint: `${rated.length} 条评分` },
+  ]
+
+  return (
+    <div className="animate-fade-up">
+      <header className="-mx-4 -mt-6 rounded-b-[2rem] px-4 pb-2 pt-6 sm:-mx-6 sm:px-6 lg:-mx-10 lg:-mt-10 lg:px-10 lg:pt-10">
+        <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-accent">Insights</p>
+        <h1 className="mt-2 font-display text-[34px] font-semibold leading-[1.1] tracking-wide text-ink sm:text-[44px]">
+          统计
+        </h1>
+        <p className="mt-2 text-[13px] text-muted">看看这些年，你都把时间花在了哪里。</p>
+      </header>
+
+      {all.length === 0 ? (
+        <EmptyState
+          className="mt-8"
+          icon={TrendingUp}
+          title="还没有数据"
+          description="添加几条记录，这里就会长成你的年度报告。"
+        />
+      ) : (
+        <>
+          <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {stats.map((stat) => (
+              <div key={stat.label} className="rounded-2xl border border-line bg-surface/55 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-muted">{stat.label}</span>
+                  <stat.icon size={14} className="text-faint" />
+                </div>
+                <p className="mt-2.5 font-display text-3xl font-semibold tabular-nums text-ink">
+                  {stat.value}
+                </p>
+                <p className="mt-0.5 text-[10px] text-faint">{stat.hint}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <Panel title="类型分布">
+              <div className="space-y-3.5">
+                {MEDIA_TYPES.map((type) => {
+                  const count = all.filter((item) => item.type === type.value).length
+                  const width = all.length ? Math.round((count / all.length) * 100) : 0
+                  return (
+                    <div key={type.value}>
+                      <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
+                        <span className="text-ink-soft">{type.label}</span>
+                        <span className="tabular-nums text-faint">
+                          {count} · {width}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+                        <div
+                          className="h-full rounded-full bg-accent/80"
+                          style={{ width: `${Math.max(width, count ? 4 : 0)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </Panel>
+
+            <Panel title="状态分布">
+              <div className="flex flex-col items-center gap-6 sm:flex-row">
+                <div
+                  className="relative h-32 w-32 shrink-0 rounded-full"
+                  style={{ background: donut ? `conic-gradient(${donut})` : 'var(--surface-2)' }}
+                >
+                  <div className="absolute inset-[14px] flex flex-col items-center justify-center rounded-full bg-surface">
+                    <span className="font-display text-2xl font-semibold text-ink">{all.length}</span>
+                    <span className="text-[9px] uppercase tracking-widest text-faint">items</span>
+                  </div>
+                </div>
+                <div className="w-full flex-1 space-y-2.5">
+                  {statusCounts.map((entry) => (
+                    <div key={entry.status} className="flex items-center gap-2 text-[11.5px]">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: STATUS_COLORS[entry.status] }}
+                      />
+                      <span className="flex-1 text-muted">{STATUS_LABELS[entry.status]}</span>
+                      <span className="tabular-nums text-ink-soft">{entry.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Panel>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+            <Panel title="评分最高">
+              {topRated.length ? (
+                <div className="space-y-1">
+                  {topRated.map((item, index) => (
+                    <div key={item.id} className="flex items-center gap-3 rounded-xl px-1 py-1.5">
+                      <span className="w-4 text-center font-display text-sm text-faint">{index + 1}</span>
+                      <Cover src={item.cover} title={item.title} className="h-14 w-10 shrink-0" rounded="rounded-md" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[12.5px] text-ink">{item.title}</p>
+                        <p className="mt-0.5 text-[10px] text-faint">
+                          {TYPE_LABELS[item.type]} · {item.year ?? '—'}
+                        </p>
+                      </div>
+                      <span className="flex items-center gap-1 text-[12px] font-medium text-accent">
+                        <Star size={11} className="fill-accent" />
+                        {item.rating?.toFixed(1)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[12px] text-faint">还没有评分。</p>
+              )}
+            </Panel>
+
+            <Panel title="阅读">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+                  <BookOpen size={22} />
+                </div>
+                <div>
+                  <p className="font-display text-2xl font-semibold text-ink">
+                    {bookList.length}
+                    <span className="ml-1 text-xs font-normal text-muted">本</span>
+                  </p>
+                  <p className="text-[10px] text-faint">在书架里</p>
+                </div>
+              </div>
+              <div className="mt-4 space-y-2 border-t border-line pt-3 text-[11.5px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted">在读</span>
+                  <span className="text-ink-soft">{reading.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted">读完</span>
+                  <span className="text-ink-soft">{finished.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted">总章节</span>
+                  <span className="text-ink-soft">
+                    {bookList.reduce((sum, book) => sum + book.chapterCount, 0)}
+                  </span>
+                </div>
+              </div>
+            </Panel>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}

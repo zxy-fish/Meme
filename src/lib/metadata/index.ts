@@ -1,0 +1,57 @@
+import type { MediaType } from '../types'
+import { detailAniList, searchAniList } from './anilist'
+import { detailBangumi, searchBangumi } from './bangumi'
+import { detailTmdb, searchTmdb } from './tmdb'
+import {
+  MetadataError,
+  type MetaDraft,
+  type MetaSearchResult,
+  type ProviderId,
+  type ProviderOptions,
+} from './types'
+
+export interface SearchResponse {
+  provider: ProviderId
+  results: MetaSearchResult[]
+  warning?: string
+}
+
+export async function searchMetadata(
+  query: string,
+  type: MediaType,
+  options: ProviderOptions = {},
+): Promise<SearchResponse> {
+  if (!query.trim()) return { provider: 'bangumi', results: [] }
+
+  if (type === 'movie' || type === 'tv') {
+    if (!options.tmdbKey?.trim()) {
+      throw new MetadataError('电影 / 剧集需要 TMDB API Key，请先到设置里填写')
+    }
+    return { provider: 'tmdb', results: await searchTmdb(query, type, options) }
+  }
+
+  try {
+    return { provider: 'bangumi', results: await searchBangumi(query, type, options) }
+  } catch (error) {
+    if (type !== 'anime' && type !== 'manga') throw error
+    const results = await searchAniList(query, type, options)
+    return {
+      provider: 'anilist',
+      results,
+      warning: 'Bangumi 连不上，已切换到 AniList；中文标题可能缺失。',
+    }
+  }
+}
+
+export async function fetchMetadata(
+  result: MetaSearchResult,
+  type: MediaType,
+  options: ProviderOptions = {},
+): Promise<MetaDraft> {
+  if (result.provider === 'bangumi') return detailBangumi(result.id, type, options)
+  if (result.provider === 'anilist') return detailAniList(result.id, type, options)
+  return detailTmdb(result.id, type, options)
+}
+
+export { MetadataError, providerLabel, unitFor } from './types'
+export type { MetaDraft, MetaSearchResult, ProviderId } from './types'
