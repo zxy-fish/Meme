@@ -21,6 +21,8 @@ ITEMS = [
     ("chainsaw", "链锯人", "CHAINSAW MAN", "MANGA · 2018", "#160606", "#7a1414", "#ffe9e0", "#ff6b4a", 6),
     ("norwegian", "挪威的森林", "NORWEGIAN WOOD", "NOVEL · 1987", "#101a13", "#5d7a5c", "#f4f0df", "#d8c48a", 7),
     ("dungeon", "迷宫饭", "DELICIOUS IN DUNGEON", "MANGA · 2014", "#241408", "#a86a2a", "#fff2d9", "#ffcf70", 8),
+    ("rebirth", "重启人生", "REBIRTH", "DRAMA · 2023", "#1e2420", "#9a8062", "#f4efe3", "#e8b06a", 9),
+    ("longseason", "漫长的季节", "THE LONG SEASON", "DRAMA · 2023", "#141d16", "#66784c", "#eef2e2", "#d8c48a", 10),
 ]
 
 SONG = "/System/Library/Fonts/Supplemental/Songti.ttc"

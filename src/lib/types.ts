@@ -33,6 +33,8 @@ export interface MediaItem {
   originalTitle?: string
   cover?: string
   year?: number
+  /** ISO 3166-1 alpha-2, e.g. JP / CN / US. */
+  country?: string
   status: MediaStatus
   rating?: number
   favorite?: boolean
@@ -149,7 +151,7 @@ export interface ReaderPrefs {
 
 export const MEDIA_TYPES: { value: MediaType; label: string; plural: string }[] = [
   { value: 'anime', label: '番剧', plural: '番剧' },
-  { value: 'tv', label: '剧集', plural: '剧集' },
+  { value: 'tv', label: '电视剧', plural: '电视剧' },
   { value: 'movie', label: '电影', plural: '电影' },
   { value: 'novel', label: '小说', plural: '小说' },
   { value: 'manga', label: '漫画', plural: '漫画' },
@@ -167,7 +169,7 @@ export const STATUS_ORDER: MediaStatus[] = ['doing', 'wish', 'done', 'onhold', '
 
 export const TYPE_LABELS: Record<MediaType, string> = {
   anime: '番剧',
-  tv: '剧集',
+  tv: '电视剧',
   movie: '电影',
   novel: '小说',
   manga: '漫画',

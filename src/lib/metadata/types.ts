@@ -19,6 +19,7 @@ export interface MetaDraft {
   originalTitle?: string
   cover?: string
   year?: number
+  country?: string
   synopsis?: string
   tags: string[]
   genres: string[]

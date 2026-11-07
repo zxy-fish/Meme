@@ -6,6 +6,7 @@ import { Cover } from '@/components/ui/Cover'
 import { Dialog } from '@/components/ui/Dialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/Input'
 import { RatingPicker } from '@/components/ui/StatusBadge'
+import { COUNTRIES, decadeKey, decadeLabel, regionLabel } from '@/lib/countries'
 import { createMedia, deleteMedia, updateMedia } from '@/lib/repo'
 import {
   fetchMetadata,
@@ -38,6 +39,7 @@ interface FormState {
   originalTitle: string
   cover: string
   year: string
+  country: string
   status: MediaStatus
   rating: number
   progressCurrent: string
@@ -71,6 +73,7 @@ function toForm(item?: MediaItem, defaultType: MediaType = 'anime'): FormState {
       originalTitle: '',
       cover: '',
       year: '',
+      country: '',
       status: 'wish',
       rating: 0,
       progressCurrent: '0',
@@ -92,6 +95,7 @@ function toForm(item?: MediaItem, defaultType: MediaType = 'anime'): FormState {
     originalTitle: item.originalTitle ?? '',
     cover: item.cover ?? '',
     year: item.year ? String(item.year) : '',
+    country: item.country ?? '',
     status: item.status,
     rating: item.rating ?? 0,
     progressCurrent: String(item.progressCurrent ?? 0),
@@ -179,6 +183,7 @@ export function MediaDialog({
         originalTitle: draft.originalTitle ?? '',
         cover: draft.cover ?? '',
         year: draft.year ? String(draft.year) : '',
+        country: draft.country ?? current.country,
         status: current.status,
         rating: draft.score ? Math.round(draft.score) : current.rating,
         progressTotal: draft.total ? String(draft.total) : '',
@@ -213,6 +218,7 @@ export function MediaDialog({
         originalTitle: form.originalTitle.trim() || undefined,
         cover: form.cover.trim() || undefined,
         year: form.year ? Number(form.year) : undefined,
+        country: form.country || undefined,
         status: form.status,
         rating: form.rating || undefined,
         progressCurrent: Number(form.progressCurrent) || 0,
@@ -255,6 +261,13 @@ export function MediaDialog({
   }
 
   const isEditing = Boolean(initial)
+  const displayProvider: ProviderId = results.length
+    ? provider
+    : form.type === 'movie' || form.type === 'tv'
+      ? tmdbKey
+        ? 'tmdb'
+        : 'bangumi'
+      : 'bangumi'
 
   return (
     <Dialog
@@ -311,6 +324,30 @@ export function MediaDialog({
 
       {tab === 'search' && !isEditing ? (
         <div className="space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-faint">类型</span>
+              <Select
+                value={form.type}
+                onChange={(event) => {
+                  const type = event.target.value as MediaType
+                  patch({ type, progressUnit: UNIT_BY_TYPE[type] })
+                  setResults([])
+                  setError(undefined)
+                  setWarning(undefined)
+                }}
+                className="h-8 w-[108px] bg-surface-2 text-[12px]"
+              >
+                {MEDIA_TYPES.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <span className="text-[10.5px] text-faint">先选类型，再搜标题</span>
+          </div>
+
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-faint" />
@@ -320,7 +357,7 @@ export function MediaDialog({
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') runSearch()
                 }}
-                placeholder="搜番剧 / 电影 / 小说…"
+                placeholder="搜番剧、电视剧、电影…"
                 className="h-11 pl-9"
                 autoFocus
               />
@@ -333,7 +370,7 @@ export function MediaDialog({
 
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-faint">
             <span className="rounded-full bg-surface-2 px-2 py-0.5">
-              {form.type === 'movie' || form.type === 'tv' ? 'TMDB' : 'Bangumi'} ·{' '}
+              {providerLabel(displayProvider)} ·{' '}
               {MEDIA_TYPES.find((type) => type.value === form.type)?.label}
             </span>
             {provider === 'anilist' ? <span>已切换 AniList 兜底</span> : null}
@@ -342,7 +379,7 @@ export function MediaDialog({
                 <span>使用已保存的 TMDB Key</span>
               ) : (
                 <Link to="/settings" onClick={onClose} className="text-accent hover:underline">
-                  还没有 TMDB Key，去设置里填 →
+                  没有 TMDB Key 也能先用 Bangumi 搜；填 Key 数据更全 →
                 </Link>
               )
             ) : null}
@@ -501,6 +538,29 @@ export function MediaDialog({
                   </option>
                 ))}
               </Select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="国家 / 地区" hint="用于「日剧」「美剧」这类分类">
+              <Select
+                value={form.country}
+                onChange={(event) => patch({ country: event.target.value })}
+              >
+                <option value="">未标注</option>
+                {COUNTRIES.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    {country.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="自动分类" hint="由年份和地区生成">
+              <div className="flex h-10 items-center gap-2 rounded-xl border border-line bg-surface-2/60 px-3 text-[12px] text-ink-soft">
+                <span>{regionLabel(form.type, form.country)}</span>
+                <span className="text-faint">·</span>
+                <span>{decadeLabel(decadeKey(Number(form.year) || undefined))}</span>
+              </div>
             </Field>
           </div>
 

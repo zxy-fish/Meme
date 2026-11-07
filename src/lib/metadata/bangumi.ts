@@ -1,3 +1,4 @@
+import { countryCodeFromName } from '../countries'
 import type { Character, MediaType } from '../types'
 import {
   MetadataError,
@@ -141,6 +142,27 @@ function mapType(subject: BangumiSubject, fallback: MediaType): MediaType {
   return fallback
 }
 
+function inferCountry(subject: BangumiSubject, type: MediaType): string | undefined {
+  const fromInfo = countryCodeFromName(
+    infoValue(subject, ['地区', '国家', '制片国家', '国家/地区', '发行地区']),
+  )
+  if (fromInfo) return fromInfo
+
+  const tags = (subject.tags ?? []).map((tag) => tag.name).join(' ')
+  if (/国产|中国|大陆|华语/.test(tags)) return 'CN'
+  if (/日本|日剧|日影|日漫|日轻/.test(tags)) return 'JP'
+  if (/美国|美剧|美影/.test(tags)) return 'US'
+  if (/韩国|韩剧|韩影/.test(tags)) return 'KR'
+  if (/英国|英剧/.test(tags)) return 'GB'
+  if (/台湾|台剧/.test(tags)) return 'TW'
+  if (/香港|港剧|港影/.test(tags)) return 'HK'
+  if (/泰国|泰剧/.test(tags)) return 'TH'
+
+  // Animated works on Bangumi are overwhelmingly Japanese unless tagged otherwise.
+  if (type === 'anime' || type === 'manga') return 'JP'
+  return undefined
+}
+
 export async function searchBangumi(
   query: string,
   type: MediaType,
@@ -211,6 +233,7 @@ export async function detailBangumi(
     originalTitle: subject.name_cn ? subject.name : undefined,
     cover: coverOf(subject.images),
     year: parseYear(subject),
+    country: inferCountry(subject, type),
     synopsis: subject.summary?.trim(),
     tags,
     genres: tags.slice(0, 4),

@@ -50,6 +50,8 @@ interface TmdbDetail {
   number_of_seasons?: number
   genres?: { id: number; name: string }[]
   production_companies?: { id: number; name: string }[]
+  origin_country?: string[]
+  production_countries?: { iso_3166_1: string; name: string }[]
   credits?: { cast?: TmdbCast[] }
   external_ids?: { imdb_id?: string }
 }
@@ -117,7 +119,7 @@ export async function searchTmdb(
       title: item.title || item.name || '未命名',
       originalTitle: item.original_title || item.original_name,
       subtitle: [
-        wanted === 'tv' ? '剧集' : '电影',
+        wanted === 'tv' ? '电视剧' : '电影',
         yearOf(item.release_date || item.first_air_date),
       ]
         .filter(Boolean)
@@ -160,6 +162,10 @@ export async function detailTmdb(
     originalTitle: data.original_title || data.original_name,
     cover: data.poster_path ? `${IMAGE}${data.poster_path}` : undefined,
     year: yearOf(data.release_date || data.first_air_date),
+    country:
+      wanted === 'tv'
+        ? data.origin_country?.[0]
+        : data.production_countries?.[0]?.iso_3166_1,
     synopsis: data.overview?.trim(),
     tags: genres,
     genres,

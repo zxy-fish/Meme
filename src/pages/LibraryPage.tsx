@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Input, Select } from '@/components/ui/Input'
 import { MediaCard } from '@/components/media/MediaCard'
 import { MediaDialog } from '@/components/media/MediaDialog'
+import { countryName, decadeKey, decadeLabel, decadeRank, regionLabel } from '@/lib/countries'
 import { db } from '@/lib/db'
 import {
   MEDIA_TYPES,
@@ -33,12 +34,16 @@ export function LibraryPage() {
   const [type, setType] = useState<MediaType | 'all'>('all')
   const [status, setStatus] = useState<MediaStatus | 'all'>('all')
   const [sort, setSort] = useState<SortKey>('updated')
+  const [country, setCountry] = useState<string>('all')
+  const [decade, setDecade] = useState<string>('all')
+  const [groupBy, setGroupBy] = useState<'none' | 'decade' | 'country' | 'type'>('none')
   const [addOpen, setAddOpen] = useState(false)
 
   const all = items ?? []
   const doing = all.filter((item) => item.status === 'doing')
   const featured = doing[0]
-  const isFiltering = Boolean(query.trim()) || type !== 'all' || status !== 'all'
+  const isFiltering =
+    Boolean(query.trim()) || type !== 'all' || status !== 'all' || country !== 'all' || decade !== 'all'
 
   const counts = useMemo(() => {
     const map = new Map<MediaType, number>()
@@ -46,13 +51,50 @@ export function LibraryPage() {
     return map
   }, [all])
 
+  const countryCounts = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const item of all) {
+      const key = item.country ?? 'unknown'
+      map.set(key, (map.get(key) ?? 0) + 1)
+    }
+    return map
+  }, [all])
+
+  const decadeCounts = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const item of all) {
+      const key = decadeKey(item.year)
+      map.set(key, (map.get(key) ?? 0) + 1)
+    }
+    return map
+  }, [all])
+
+  const countryOptions = useMemo(
+    () => [...countryCounts.entries()].sort((a, b) => b[1] - a[1]),
+    [countryCounts],
+  )
+  const decadeOptions = useMemo(
+    () => [...decadeCounts.keys()].sort((a, b) => decadeRank(a) - decadeRank(b)),
+    [decadeCounts],
+  )
+
   const filtered = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     const result = all.filter((item) => {
       if (type !== 'all' && item.type !== type) return false
       if (status !== 'all' && item.status !== status) return false
+      if (country !== 'all' && (item.country ?? 'unknown') !== country) return false
+      if (decade !== 'all' && decadeKey(item.year) !== decade) return false
       if (!keyword) return true
-      return [item.title, item.originalTitle, item.synopsis, ...item.tags]
+      return [
+        item.title,
+        item.originalTitle,
+        item.synopsis,
+        ...item.tags,
+        regionLabel(item.type, item.country),
+        countryName(item.country),
+        decadeLabel(decadeKey(item.year)),
+      ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
@@ -64,7 +106,47 @@ export function LibraryPage() {
       if (sort === 'title') return a.title.localeCompare(b.title, 'zh-CN')
       return b.updatedAt - a.updatedAt
     })
-  }, [all, query, type, status, sort])
+  }, [all, query, type, status, country, decade, sort])
+
+  const groups = useMemo(() => {
+    if (groupBy === 'none') return []
+    const map = new Map<string, MediaItem[]>()
+    for (const item of filtered) {
+      const key =
+        groupBy === 'decade'
+          ? decadeKey(item.year)
+          : groupBy === 'country'
+            ? (item.country ?? 'unknown')
+            : item.type
+      const list = map.get(key) ?? []
+      list.push(item)
+      map.set(key, list)
+    }
+    const entries = [...map.entries()]
+    entries.sort((a, b) => {
+      if (groupBy === 'decade') return decadeRank(a[0]) - decadeRank(b[0])
+      if (groupBy === 'type') {
+        const order = MEDIA_TYPES.findIndex((entry) => entry.value === a[0])
+        const other = MEDIA_TYPES.findIndex((entry) => entry.value === b[0])
+        return order - other
+      }
+      return b[1].length - a[1].length
+    })
+    return entries.map(([key, list]) => ({
+      key,
+      items: list,
+      label:
+        groupBy === 'decade'
+          ? decadeLabel(key)
+          : groupBy === 'country'
+            ? key === 'unknown'
+              ? '地区未标'
+              : countryName(key)
+            : TYPE_LABELS[key as MediaType],
+    }))
+  }, [filtered, groupBy])
+
+  const showFeatured = !isFiltering && groupBy === 'none'
 
   return (
     <div className="animate-fade-up">
@@ -91,7 +173,7 @@ export function LibraryPage() {
           </Button>
         </div>
 
-        {featured ? (
+        {showFeatured && featured ? (
           <Link
             to={`/item/${featured.id}`}
             className="group relative mt-6 block overflow-hidden rounded-3xl border border-line bg-surface/60"
@@ -119,7 +201,11 @@ export function LibraryPage() {
                   {featured.title}
                 </h2>
                 <p className="mt-1 truncate text-[12px] text-muted">
-                  {[featured.originalTitle, featured.year, TYPE_LABELS[featured.type]]
+                  {[
+                    featured.originalTitle,
+                    featured.year,
+                    featured.country ? regionLabel(featured.type, featured.country) : TYPE_LABELS[featured.type],
+                  ]
                     .filter(Boolean)
                     .join(' · ')}
                 </p>
@@ -244,6 +330,59 @@ export function LibraryPage() {
             </button>
           ))}
         </div>
+
+        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <Select
+            value={country}
+            onChange={(event) => setCountry(event.target.value)}
+            className="h-9 w-full bg-surface text-[12px] sm:w-[132px]"
+            aria-label="按国家或地区筛选"
+          >
+            <option value="all">全部地区</option>
+            {countryOptions.map(([code, count]) => (
+              <option key={code} value={code}>
+                {code === 'unknown' ? '地区未标' : countryName(code)}（{count}）
+              </option>
+            ))}
+          </Select>
+          <Select
+            value={decade}
+            onChange={(event) => setDecade(event.target.value)}
+            className="h-9 w-full bg-surface text-[12px] sm:w-[132px]"
+            aria-label="按年代筛选"
+          >
+            <option value="all">全部年代</option>
+            {decadeOptions.map((key) => (
+              <option key={key} value={key}>
+                {decadeLabel(key)}（{decadeCounts.get(key) ?? 0}）
+              </option>
+            ))}
+          </Select>
+          <Select
+            value={groupBy}
+            onChange={(event) => setGroupBy(event.target.value as typeof groupBy)}
+            className="h-9 w-full bg-surface text-[12px] sm:w-[138px]"
+            aria-label="分组方式"
+          >
+            <option value="none">不分组</option>
+            <option value="decade">按年代分组</option>
+            <option value="country">按国家分组</option>
+            <option value="type">按类型分组</option>
+          </Select>
+          {country !== 'all' || decade !== 'all' || groupBy !== 'none' ? (
+            <button
+              type="button"
+              onClick={() => {
+                setCountry('all')
+                setDecade('all')
+                setGroupBy('none')
+              }}
+              className="col-span-3 h-9 rounded-lg px-2 text-[11.5px] text-muted transition-colors hover:text-ink sm:col-auto"
+            >
+              重置分类
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-6">
@@ -256,40 +395,63 @@ export function LibraryPage() {
               </div>
             ))}
           </div>
-        ) : filtered.length ? (
+        ) : filtered.length === 0 ? (
+          isFiltering ? (
+            <EmptyState
+              icon={Search}
+              title="没有匹配的条目"
+              description="换个关键词，或者把筛选条件清掉看看。"
+              action={
+                <Button
+                  onClick={() => {
+                    setQuery('')
+                    setType('all')
+                    setStatus('all')
+                    setCountry('all')
+                    setDecade('all')
+                    setGroupBy('none')
+                  }}
+                >
+                  清空筛选
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={LibraryBig}
+              title="媒体库还是空的"
+              description="把看过的、在看的、想看的一次收进来。搜索标题就能自动补全封面、CV、地区和年代。"
+              action={
+                <Button variant="primary" onClick={() => setAddOpen(true)}>
+                  <Plus size={15} /> 添加第一个条目
+                </Button>
+              }
+            />
+          )
+        ) : groupBy !== 'none' ? (
+          <div className="space-y-10">
+            {groups.map((group) => (
+              <section key={group.key}>
+                <div className="mb-3 flex items-baseline gap-2 border-b border-line pb-2">
+                  <h2 className="font-display text-xl font-semibold tracking-wide text-ink">
+                    {group.label}
+                  </h2>
+                  <span className="text-[11px] text-faint">{group.items.length} 部</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                  {group.items.map((item, index) => (
+                    <MediaCard key={item.id} item={item} index={index} />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : (
           <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {filtered.map((item: MediaItem, index) => (
               <MediaCard key={item.id} item={item} index={index} />
             ))}
           </div>
-        ) : isFiltering ? (
-          <EmptyState
-            icon={Search}
-            title="没有匹配的条目"
-            description="换个关键词，或者把筛选条件清掉看看。"
-            action={
-              <Button
-                onClick={() => {
-                  setQuery('')
-                  setType('all')
-                  setStatus('all')
-                }}
-              >
-                清空筛选
-              </Button>
-            }
-          />
-        ) : (
-          <EmptyState
-            icon={LibraryBig}
-            title="媒体库还是空的"
-            description="把看过的、在看的、想看的一次收进来。搜索标题就能自动补全封面和 CV。"
-            action={
-              <Button variant="primary" onClick={() => setAddOpen(true)}>
-                <Plus size={15} /> 添加第一个条目
-              </Button>
-            }
-          />
         )}
       </div>
 

@@ -219,7 +219,7 @@ export function SettingsPage() {
           </div>
           <Field
             label="TMDB API Key"
-            hint="电影 / 剧集搜索用；番剧、漫画、小说走 Bangumi，不需要 Key"
+            hint="电影 / 电视剧优先用；没有 Key 时自动走 Bangumi"
           >
             <Input
               type="password"

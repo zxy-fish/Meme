@@ -2,12 +2,14 @@ import { Link } from 'react-router-dom'
 import { Heart, Star } from 'lucide-react'
 import { Cover } from '@/components/ui/Cover'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { regionLabel } from '@/lib/countries'
 import { TYPE_LABELS, UNIT_LABELS, type MediaItem } from '@/lib/types'
 import { cn, percentOf } from '@/lib/utils'
 
 export function MediaCard({ item, index = 0 }: { item: MediaItem; index?: number }) {
   const progress = percentOf(item.progressCurrent, item.progressTotal)
   const unit = UNIT_LABELS[item.progressUnit]
+  const classification = [item.year, regionLabel(item.type, item.country)].filter(Boolean).join(' · ')
 
   return (
     <Link
@@ -71,8 +73,8 @@ export function MediaCard({ item, index = 0 }: { item: MediaItem; index?: number
         </h3>
         <p className={cn('mt-0.5 truncate text-[11px] text-faint', item.status === 'doing' && 'text-muted')}>
           {item.status === 'doing' && item.progressTotal
-            ? `${item.year ?? '—'} · 看到第 ${item.progressCurrent} ${unit}`
-            : [item.year, item.originalTitle].filter(Boolean).join(' · ') || TYPE_LABELS[item.type]}
+            ? `${classification} · 看到第 ${item.progressCurrent} ${unit}`
+            : classification}
         </p>
       </div>
     </Link>

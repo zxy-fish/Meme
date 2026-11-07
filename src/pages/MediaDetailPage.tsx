@@ -17,6 +17,7 @@ import { Cover } from '@/components/ui/Cover'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { MediaDialog } from '@/components/media/MediaDialog'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { countryName, decadeKey, decadeLabel, regionLabel } from '@/lib/countries'
 import { db } from '@/lib/db'
 import { bumpProgress, toggleFavorite, updateMedia } from '@/lib/repo'
 import {
@@ -121,6 +122,11 @@ export function MediaDetailPage() {
                   {item.year}
                 </span>
               ) : null}
+              {item.country ? (
+                <span className="rounded-full border border-line bg-surface/60 px-2.5 py-1 text-[10.5px] text-muted">
+                  {regionLabel(item.type, item.country)}
+                </span>
+              ) : null}
               <StatusBadge status={item.status} size="md" />
               {item.favorite ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-[10.5px] text-accent">
@@ -145,6 +151,15 @@ export function MediaDetailPage() {
                 ))}
               </div>
             ) : null}
+
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[10.5px] text-faint">
+              <span className="uppercase tracking-[0.14em]">自动分类</span>
+              <span className="text-ink-soft">{regionLabel(item.type, item.country)}</span>
+              <span>·</span>
+              <span className="text-ink-soft">{decadeLabel(decadeKey(item.year))}</span>
+              <span>·</span>
+              <span className="text-ink-soft">{TYPE_LABELS[item.type]}</span>
+            </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <select
@@ -312,6 +327,11 @@ export function MediaDetailPage() {
               ['类型', TYPE_LABELS[item.type]],
               ['状态', STATUS_LABELS[item.status]],
               ['年份', item.year ? String(item.year) : '—'],
+              ['年代', decadeLabel(decadeKey(item.year))],
+              [
+                '国家 / 地区',
+                item.country ? `${countryName(item.country)} · ${regionLabel(item.type, item.country)}` : '—',
+              ],
               ['评分', item.rating ? `${item.rating.toFixed(1)} / 10` : '未评分'],
               ['制作 / 出版', item.studios.join(' / ') || '—'],
               ['类型标签', item.genres.join(' / ') || '—'],

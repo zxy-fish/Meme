@@ -7,14 +7,38 @@ import type { Book, Bookmark, MediaItem } from './types'
 import { hashText, uuid } from './utils'
 
 const SEED_KEY = 'meme:seeded:v1'
+const TV_SEED_KEY = 'meme:seed-tv:v2'
 let seedPromise: Promise<void> | null = null
 
 export function ensureSeedData(): Promise<void> {
-  if (!seedPromise) seedPromise = seedInternal()
+  if (!seedPromise) seedPromise = seedInternal().then(backfillSeedCountries)
   return seedPromise
 }
 
+const SEED_COUNTRY_BY_ID: Record<string, string> = {
+  'seed-media-anime-0': 'JP',
+  'seed-media-anime-1': 'JP',
+  'seed-media-movie-2': 'US',
+  'seed-media-movie-3': 'US',
+  'seed-media-novel-4': 'CN',
+  'seed-media-manga-5': 'JP',
+  'seed-media-novel-6': 'JP',
+  'seed-media-manga-7': 'JP',
+  'seed-media-tv-8': 'JP',
+  'seed-media-tv-9': 'CN',
+}
+
+async function backfillSeedCountries(): Promise<void> {
+  const items = await db.media.toArray()
+  await Promise.all(
+    items
+      .filter((item) => !item.country && SEED_COUNTRY_BY_ID[item.id])
+      .map((item) => db.media.update(item.id, { country: SEED_COUNTRY_BY_ID[item.id] })),
+  )
+}
+
 async function seedInternal(): Promise<void> {
+  await maybeAddTvSeeds()
   if (localStorage.getItem(SEED_KEY)) return
 
   const [mediaCount, bookmarkCount, bookCount] = await Promise.all([
@@ -48,6 +72,22 @@ async function seedInternal(): Promise<void> {
   }
 
   localStorage.setItem(SEED_KEY, '1')
+}
+
+async function maybeAddTvSeeds(): Promise<void> {
+  if (localStorage.getItem(TV_SEED_KEY)) return
+  localStorage.setItem(TV_SEED_KEY, '1')
+  const items = await db.media.toArray()
+  const onlySeedItems = items.every((item) => item.id.startsWith('seed-media-'))
+  const hasTv = items.some((item) => item.type === 'tv')
+  if (items.length === 8 && onlySeedItems && !hasTv) {
+    const additions: MediaItem[] = SEED_MEDIA.slice(8).map((item, offset) => ({
+      ...item,
+      id: `seed-media-${item.type}-${8 + offset}`,
+      ...seedTimestamps(8 + offset),
+    }))
+    await db.media.bulkAdd(additions)
+  }
 }
 
 async function seedDemoBook() {
@@ -87,6 +127,7 @@ export async function createMedia(
     originalTitle: input.originalTitle,
     cover: input.cover,
     year: input.year,
+    country: input.country,
     status: input.status ?? 'wish',
     rating: input.rating,
     favorite: input.favorite,

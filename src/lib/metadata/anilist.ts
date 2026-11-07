@@ -28,6 +28,7 @@ interface AniListMedia {
   genres?: string[]
   averageScore?: number
   format?: string
+  countryOfOrigin?: string
   studios?: { nodes: { name: string }[] }
   characters?: {
     edges: {
@@ -109,6 +110,7 @@ export async function searchAniList(
           chapters
           averageScore
           format
+          countryOfOrigin
         }
       }
     }`,
@@ -148,6 +150,7 @@ export async function detailAniList(
         chapters
         genres
         averageScore
+        countryOfOrigin
         studios(isMain: true) { nodes { name } }
         characters(perPage: 14, sort: [ROLE, RELEVANCE]) {
           edges {
@@ -179,6 +182,7 @@ export async function detailAniList(
     originalTitle: original,
     cover: media.coverImage?.extraLarge ?? media.coverImage?.large,
     year: media.startDate?.year,
+    country: media.countryOfOrigin,
     synopsis: stripHtml(media.description),
     tags: media.genres ?? [],
     genres: media.genres ?? [],

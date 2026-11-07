@@ -2,12 +2,12 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { BookOpen, CheckCircle2, Clock3, LibraryBig, Star, TrendingUp } from 'lucide-react'
 import { Cover } from '@/components/ui/Cover'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { countryName, decadeKey, decadeLabel, decadeRank, regionLabel } from '@/lib/countries'
 import { db } from '@/lib/db'
 import {
   MEDIA_TYPES,
   STATUS_LABELS,
   STATUS_ORDER,
-  TYPE_LABELS,
   type MediaStatus,
 } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -55,6 +55,17 @@ export function StatsPage() {
   const done = all.filter((item) => item.status === 'done').length
   const doing = all.filter((item) => item.status === 'doing').length
   const topRated = [...rated].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 5)
+
+  const decadeCounts = new Map<string, number>()
+  const countryCounts = new Map<string, number>()
+  for (const item of all) {
+    const decade = decadeKey(item.year)
+    decadeCounts.set(decade, (decadeCounts.get(decade) ?? 0) + 1)
+    const region = item.country ?? 'unknown'
+    countryCounts.set(region, (countryCounts.get(region) ?? 0) + 1)
+  }
+  const decades = [...decadeCounts.entries()].sort((a, b) => decadeRank(a[0]) - decadeRank(b[0]))
+  const countries = [...countryCounts.entries()].sort((a, b) => b[1] - a[1])
 
   const statusCounts = STATUS_ORDER.map((status) => ({
     status,
@@ -170,6 +181,58 @@ export function StatsPage() {
             </Panel>
           </div>
 
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <Panel title="年代分布">
+              <div className="space-y-3.5">
+                {decades.map(([key, count]) => {
+                  const width = all.length ? Math.round((count / all.length) * 100) : 0
+                  return (
+                    <div key={key}>
+                      <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
+                        <span className="text-ink-soft">{decadeLabel(key)}</span>
+                        <span className="tabular-nums text-faint">
+                          {count} · {width}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+                        <div
+                          className="h-full rounded-full bg-teal/70"
+                          style={{ width: `${Math.max(width, count ? 4 : 0)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </Panel>
+
+            <Panel title="国家 / 地区">
+              <div className="space-y-3.5">
+                {countries.map(([code, count]) => {
+                  const width = all.length ? Math.round((count / all.length) * 100) : 0
+                  return (
+                    <div key={code}>
+                      <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
+                        <span className="text-ink-soft">
+                          {code === 'unknown' ? '地区未标' : countryName(code)}
+                        </span>
+                        <span className="tabular-nums text-faint">
+                          {count} · {width}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+                        <div
+                          className="h-full rounded-full bg-accent/75"
+                          style={{ width: `${Math.max(width, count ? 4 : 0)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </Panel>
+          </div>
+
           <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
             <Panel title="评分最高">
               {topRated.length ? (
@@ -181,7 +244,7 @@ export function StatsPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[12.5px] text-ink">{item.title}</p>
                         <p className="mt-0.5 text-[10px] text-faint">
-                          {TYPE_LABELS[item.type]} · {item.year ?? '—'}
+                          {[regionLabel(item.type, item.country), item.year].filter(Boolean).join(' · ')}
                         </p>
                       </div>
                       <span className="flex items-center gap-1 text-[12px] font-medium text-accent">

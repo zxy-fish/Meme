@@ -85,6 +85,41 @@ test('imports a TXT and opens it in the reader', async ({ page }) => {
   expect(errors).toEqual([])
 })
 
+
+test('classifies a TV entry by country and decade', async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto('/')
+  await page.getByRole('button', { name: '添加条目' }).click()
+  await page.getByRole('button', { name: '手动填写', exact: true }).click()
+  await page.getByPlaceholder('例如：葬送的芙莉莲').fill('测试日剧')
+  await page.getByPlaceholder('2024').fill('2024')
+  const selects = page.getByRole('dialog').locator('select')
+  await selects.nth(0).selectOption('tv')
+  await selects.nth(3).selectOption('JP')
+  await page.getByRole('button', { name: '加入媒体库' }).click()
+
+  await expect(page.getByText('测试日剧').first()).toBeVisible()
+  await expect(page.getByText('2024 · 日剧').first()).toBeVisible()
+
+  await page.selectOption('select[aria-label="分组方式"]', 'country')
+  await expect(page.getByRole('heading', { name: '日本' })).toBeVisible()
+  await expect(page.getByText('测试日剧').first()).toBeVisible()
+
+  await page.selectOption('select[aria-label="按国家或地区筛选"]', 'JP')
+  await page.selectOption('select[aria-label="按年代筛选"]', '2020')
+  await expect(page.getByText('测试日剧').first()).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test('stats include decade and country breakdowns', async ({ page }) => {
+  await page.goto('/#/stats')
+  await expect(page.getByRole('heading', { name: '统计' })).toBeVisible()
+  await expect(page.getByText('年代分布')).toBeVisible()
+  await expect(page.getByText('国家 / 地区')).toBeVisible()
+  await expect(page.getByText('日剧').first()).toBeVisible()
+  await expect(page.getByText('2020年代').first()).toBeVisible()
+})
+
 test.describe('mobile', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
 
