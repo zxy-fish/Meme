@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
+import { UpdatePanel } from '@/components/settings/UpdatePanel'
 import { db, exportBackup, importBackup } from '@/lib/db'
 import { clearCoverCache, purgeDeletedContent, resetLibrary } from '@/lib/repo'
 import { syncNow, testConnection } from '@/lib/sync/github'
@@ -490,6 +491,8 @@ export function SettingsPage() {
               : ''}
           </p>
         </section>
+
+        <UpdatePanel />
 
         <section className="rounded-2xl border border-line bg-surface/50 p-5">
           <div className="mb-3 flex items-center gap-2">

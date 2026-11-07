@@ -1,10 +1,104 @@
-const { app, BrowserWindow, shell, protocol } = require('electron')
+const { app, BrowserWindow, ipcMain, shell, protocol } = require('electron')
 const fs = require('node:fs')
 const path = require('node:path')
 
 const isDev = process.argv.includes('--dev')
 const isSmoke = process.argv.includes('--smoke')
 const DEV_URL = 'http://127.0.0.1:5173'
+
+// electron-updater is only present in packaged builds; keep the app usable
+// (and the smoke test green) if the module is missing.
+let autoUpdater = null
+try {
+  autoUpdater = require('electron-updater').autoUpdater
+} catch (error) {
+  console.warn('[meme] electron-updater unavailable:', error?.message ?? error)
+}
+
+const updateState = { status: 'idle', version: null, percent: 0, message: null }
+
+function publishUpdateState(patch) {
+  Object.assign(updateState, patch)
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('update:state', { ...updateState })
+  }
+}
+
+function setupUpdater() {
+  if (!autoUpdater || !app.isPackaged) return
+  // Set the feed explicitly so updates work even if app-update.yml is absent
+  // (e.g. a --dir build or a hand-made bundle).
+  try {
+    autoUpdater.setFeedURL({ provider: 'github', owner: 'zxy-fish', repo: 'Meme' })
+  } catch (error) {
+    console.warn('[meme] could not set update feed:', error?.message ?? error)
+  }
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = true
+  autoUpdater.on('checking-for-update', () => publishUpdateState({ status: 'checking', percent: 0 }))
+  autoUpdater.on('update-available', (info) =>
+    publishUpdateState({ status: 'available', version: info.version, percent: 0, message: null }),
+  )
+  autoUpdater.on('update-not-available', () =>
+    publishUpdateState({ status: 'latest', version: app.getVersion(), percent: 0, message: null }),
+  )
+  autoUpdater.on('download-progress', (progress) =>
+    publishUpdateState({ status: 'downloading', percent: Math.round(progress.percent ?? 0) }),
+  )
+  autoUpdater.on('update-downloaded', (info) =>
+    publishUpdateState({ status: 'downloaded', version: info.version, percent: 100, message: null }),
+  )
+  autoUpdater.on('error', (error) =>
+    publishUpdateState({ status: 'error', message: String(error?.message ?? error) }),
+  )
+
+  // Look for a new version shortly after launch, but never block startup.
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((error) => {
+      console.warn('[meme] update check failed:', error?.message ?? error)
+    })
+  }, 5000)
+}
+
+ipcMain.handle('app:info', () => ({
+  version: app.getVersion(),
+  platform: process.platform,
+  packaged: app.isPackaged,
+  updatable: Boolean(autoUpdater) && app.isPackaged,
+}))
+
+ipcMain.handle('update:state', () => ({ ...updateState }))
+
+ipcMain.handle('update:check', async () => {
+  if (!autoUpdater || !app.isPackaged) {
+    return { status: 'unsupported', message: '开发模式下不检查更新' }
+  }
+  try {
+    publishUpdateState({ status: 'checking', percent: 0, message: null })
+    await autoUpdater.checkForUpdates()
+  } catch (error) {
+    publishUpdateState({ status: 'error', message: String(error?.message ?? error) })
+  }
+  return { ...updateState }
+})
+
+ipcMain.handle('update:download', async () => {
+  if (!autoUpdater || !app.isPackaged) return { ...updateState }
+  try {
+    publishUpdateState({ status: 'downloading', percent: 0, message: null })
+    await autoUpdater.downloadUpdate()
+  } catch (error) {
+    publishUpdateState({ status: 'error', message: String(error?.message ?? error) })
+  }
+  return { ...updateState }
+})
+
+ipcMain.handle('update:install', () => {
+  if (!autoUpdater || !app.isPackaged) return false
+  setImmediate(() => autoUpdater.quitAndInstall())
+  return true
+})
+
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -107,6 +201,7 @@ app.whenReady().then(() => {
   if (process.platform === 'win32') app.setAppUserModelId('app.meme.library')
   if (!isDev) registerAppProtocol()
   createWindow()
+  setupUpdater()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })

@@ -305,3 +305,37 @@ test.describe('mobile', () => {
     expect(errors).toEqual([])
   })
 })
+
+test('desktop update panel checks and reports updates', async ({ page }) => {
+  // The panel is desktop-only; stub the preload bridge before the app boots.
+  await page.addInitScript(() => {
+    let emit: ((state: unknown) => void) | undefined
+    ;(window as any).memeDesktop = {
+      platform: 'win32',
+      electron: '45.2.3',
+      appInfo: async () => ({ version: '1.1.0', platform: 'win32', packaged: true, updatable: true }),
+      updates: {
+        getState: async () => ({ status: 'idle', version: null, percent: 0, message: null }),
+        check: async () => {
+          const next = { status: 'latest', version: '1.1.0', percent: 0, message: null }
+          emit?.(next)
+          return next
+        },
+        download: async () => ({ status: 'idle', version: null, percent: 0, message: null }),
+        install: async () => true,
+        onState: (callback: (state: unknown) => void) => {
+          emit = callback
+          return () => {
+            emit = undefined
+          }
+        },
+      },
+    }
+  })
+
+  await page.goto('/#/settings')
+  await expect(page.getByText('应用更新')).toBeVisible()
+  await expect(page.getByText(/当前 v1\.1\.0/)).toBeVisible()
+  await page.getByRole('button', { name: '检查更新' }).click()
+  await expect(page.getByText('已是最新版本')).toBeVisible()
+})
