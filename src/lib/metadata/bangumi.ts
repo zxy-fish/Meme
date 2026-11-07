@@ -201,9 +201,9 @@ export async function detailBangumi(
   const tags = (subject.tags ?? []).slice(0, 10).map((tag) => tag.name)
   const studios = infoValue(subject, ['动画制作', '制作公司', '出版社', '出品公司', '制作'])
   const total =
-    subject.total_episodes ??
-    subject.eps ??
-    subject.volumes ??
+    (subject.eps && subject.eps > 0 ? subject.eps : undefined) ??
+    (subject.total_episodes && subject.total_episodes > 0 ? subject.total_episodes : undefined) ??
+    (subject.volumes && subject.volumes > 0 ? subject.volumes : undefined) ??
     parseNumber(infoValue(subject, ['话数', '集数', '册数', '卷数']))
 
   return {

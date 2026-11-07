@@ -1,5 +1,9 @@
 # Meme
 
+[![CI](https://github.com/zxy-fish/Meme/actions/workflows/ci.yml/badge.svg)](https://github.com/zxy-fish/Meme/actions/workflows/ci.yml)
+[![Deploy web](https://github.com/zxy-fish/Meme/actions/workflows/pages.yml/badge.svg)](https://github.com/zxy-fish/Meme/actions/workflows/pages.yml)
+[![Desktop builds](https://github.com/zxy-fish/Meme/actions/workflows/desktop.yml/badge.svg)](https://github.com/zxy-fish/Meme/actions/workflows/desktop.yml)
+
 > 把看过的、在看的、想看的番剧 / 电视剧 / 电影 / 小说 / 漫画和网页，收进一个地方。
 > 本地优先，元数据一键补全，手机和电脑同步，内置一个 Kindle 手感的阅读器。
 
