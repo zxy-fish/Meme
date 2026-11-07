@@ -4,7 +4,7 @@ import { parseChapters } from './reader/chapters'
 import type { ImportedTxt } from './reader/txt'
 import { SEED_BOOKMARKS, SEED_MEDIA, seedTimestamps } from './seed-data'
 import type { Book, Bookmark, MediaItem } from './types'
-import { uuid } from './utils'
+import { hashText, uuid } from './utils'
 
 const SEED_KEY = 'meme:seeded:v1'
 let seedPromise: Promise<void> | null = null
@@ -162,8 +162,12 @@ export async function importTxtBook(file: File): Promise<Book> {
   const { readTxtFile } = await import('./reader/txt')
   const parsed: ImportedTxt = await readTxtFile(file)
   const now = Date.now()
+  // Content-addressed id: importing the same TXT on the phone and the laptop
+  // yields the same book record, so reading progress can sync between them.
+  const id = `book-${(await hashText(parsed.text)).slice(0, 40)}`
+  const existing = await db.books.get(id)
   const book: Book = {
-    id: uuid(),
+    id,
     title: parsed.title,
     author: parsed.author,
     format: 'txt',
@@ -171,17 +175,21 @@ export async function importTxtBook(file: File): Promise<Book> {
     fileSize: parsed.fileSize,
     encoding: parsed.encoding,
     chapterCount: parsed.chapters.length,
-    tags: [],
-    lastChapter: 0,
-    lastPage: 0,
-    percent: 0,
-    createdAt: now,
+    tags: existing?.tags ?? [],
+    lastChapter: existing?.lastChapter ?? 0,
+    lastPage: existing?.lastPage ?? 0,
+    percent: existing?.percent ?? 0,
+    lastReadAt: existing?.lastReadAt,
+    marks: existing?.marks,
+    cover: existing?.cover,
+    createdAt: existing?.createdAt ?? now,
     updatedAt: now,
+    deletedAt: undefined,
   }
   await db.transaction('rw', db.books, db.contents, async () => {
-    await db.books.add(book)
-    await db.contents.add({
-      id: book.id,
+    await db.books.put(book)
+    await db.contents.put({
+      id,
       text: parsed.text,
       chapters: parsed.chapters.map(({ title, start, end, index }) => ({ title, start, end, index })),
     })

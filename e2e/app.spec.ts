@@ -70,6 +70,21 @@ test('changes reader theme', async ({ page }) => {
   await expect(page.locator('.reader-dark')).toBeVisible()
 })
 
+
+test('imports a TXT and opens it in the reader', async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto('/#/books')
+  const input = page.locator('input[type=file]')
+  await input.setInputFiles({
+    name: '测试小说.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('第一章 开始\n\n你好，世界。\n\n第二章 继续\n\n再见。', 'utf8'),
+  })
+  await expect(page).toHaveURL(/#\/read\/book-/)
+  await expect(page.getByRole('heading', { name: /第一章 开始/ })).toBeVisible()
+  expect(errors).toEqual([])
+})
+
 test.describe('mobile', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
 
