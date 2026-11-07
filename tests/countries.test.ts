@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   countryCodeFromName,
   countryName,
-  decadeKey,
-  decadeLabel,
   regionLabel,
 } from '../src/lib/countries'
 
@@ -29,25 +27,5 @@ describe('country classification', () => {
     expect(regionLabel('anime', 'JP')).toBe('日本动画')
     expect(regionLabel('manga', 'JP')).toBe('日漫')
     expect(regionLabel('novel', 'CN')).toBe('国产小说')
-  })
-})
-
-describe('decade classification', () => {
-  it('buckets years into decades', () => {
-    expect(decadeKey(2023)).toBe('2020')
-    expect(decadeKey(2013)).toBe('2010')
-    expect(decadeKey(2006)).toBe('2000')
-    expect(decadeKey(1995)).toBe('1990')
-    expect(decadeKey(1987)).toBe('1980')
-    expect(decadeKey(1970)).toBe('earlier')
-    expect(decadeKey(undefined)).toBe('unknown')
-  })
-
-  it('renders readable labels', () => {
-    expect(decadeLabel('2020')).toBe('2020年代')
-    expect(decadeLabel('1990')).toBe('90年代')
-    expect(decadeLabel('1980')).toBe('80年代')
-    expect(decadeLabel('earlier')).toBe('更早')
-    expect(decadeLabel('unknown')).toBe('年代未知')
   })
 })

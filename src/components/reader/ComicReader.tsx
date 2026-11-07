@@ -27,6 +27,7 @@ export function ComicReader({ book }: { book: Book }) {
   const [gridOpen, setGridOpen] = useState(false)
   const [url, setUrl] = useState<string>()
   const initialized = useRef(false)
+  const savedOnce = useRef(false)
   const touchRef = useRef<{ x: number; y: number } | null>(null)
 
   const total = pages?.length ?? book.pageCount ?? 0
@@ -51,6 +52,10 @@ export function ComicReader({ book }: { book: Book }) {
 
   useEffect(() => {
     if (!pages?.length || !initialized.current) return
+    if (!savedOnce.current) {
+      savedOnce.current = true
+      return
+    }
     void saveReadingProgress(book.id, 0, page, percent)
   }, [book.id, page, percent, pages?.length])
 

@@ -6,7 +6,8 @@ import { Cover } from '@/components/ui/Cover'
 import { Dialog } from '@/components/ui/Dialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/Input'
 import { RatingPicker } from '@/components/ui/StatusBadge'
-import { COUNTRIES, decadeKey, decadeLabel, regionLabel } from '@/lib/countries'
+import { COUNTRIES, regionLabel } from '@/lib/countries'
+import { yearKey, yearLabel } from '@/lib/years'
 import { createMedia, deleteMedia, updateMedia } from '@/lib/repo'
 import {
   fetchMetadata,
@@ -559,7 +560,7 @@ export function MediaDialog({
               <div className="flex h-10 items-center gap-2 rounded-xl border border-line bg-surface-2/60 px-3 text-[12px] text-ink-soft">
                 <span>{regionLabel(form.type, form.country)}</span>
                 <span className="text-faint">·</span>
-                <span>{decadeLabel(decadeKey(Number(form.year) || undefined))}</span>
+                <span>{yearLabel(yearKey(Number(form.year) || undefined))}</span>
               </div>
             </Field>
           </div>

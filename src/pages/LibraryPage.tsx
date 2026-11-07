@@ -9,7 +9,8 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Input, Select } from '@/components/ui/Input'
 import { MediaCard } from '@/components/media/MediaCard'
 import { MediaDialog } from '@/components/media/MediaDialog'
-import { countryName, decadeKey, decadeLabel, decadeRank, regionLabel } from '@/lib/countries'
+import { countryName, regionLabel } from '@/lib/countries'
+import { yearKey, yearLabel, yearRank } from '@/lib/years'
 import { db } from '@/lib/db'
 import {
   MEDIA_TYPES,
@@ -35,15 +36,15 @@ export function LibraryPage() {
   const [status, setStatus] = useState<MediaStatus | 'all'>('all')
   const [sort, setSort] = useState<SortKey>('updated')
   const [country, setCountry] = useState<string>('all')
-  const [decade, setDecade] = useState<string>('all')
-  const [groupBy, setGroupBy] = useState<'none' | 'decade' | 'country' | 'type'>('none')
+  const [year, setYear] = useState<string>('all')
+  const [groupBy, setGroupBy] = useState<'none' | 'year' | 'country' | 'type'>('none')
   const [addOpen, setAddOpen] = useState(false)
 
   const all = items ?? []
   const doing = all.filter((item) => item.status === 'doing')
   const featured = doing[0]
   const isFiltering =
-    Boolean(query.trim()) || type !== 'all' || status !== 'all' || country !== 'all' || decade !== 'all'
+    Boolean(query.trim()) || type !== 'all' || status !== 'all' || country !== 'all' || year !== 'all'
 
   const counts = useMemo(() => {
     const map = new Map<MediaType, number>()
@@ -60,10 +61,10 @@ export function LibraryPage() {
     return map
   }, [all])
 
-  const decadeCounts = useMemo(() => {
+  const yearCounts = useMemo(() => {
     const map = new Map<string, number>()
     for (const item of all) {
-      const key = decadeKey(item.year)
+      const key = yearKey(item.year)
       map.set(key, (map.get(key) ?? 0) + 1)
     }
     return map
@@ -73,9 +74,9 @@ export function LibraryPage() {
     () => [...countryCounts.entries()].sort((a, b) => b[1] - a[1]),
     [countryCounts],
   )
-  const decadeOptions = useMemo(
-    () => [...decadeCounts.keys()].sort((a, b) => decadeRank(a) - decadeRank(b)),
-    [decadeCounts],
+  const yearOptions = useMemo(
+    () => [...yearCounts.keys()].sort((a, b) => yearRank(b) - yearRank(a)),
+    [yearCounts],
   )
 
   const filtered = useMemo(() => {
@@ -84,7 +85,7 @@ export function LibraryPage() {
       if (type !== 'all' && item.type !== type) return false
       if (status !== 'all' && item.status !== status) return false
       if (country !== 'all' && (item.country ?? 'unknown') !== country) return false
-      if (decade !== 'all' && decadeKey(item.year) !== decade) return false
+      if (year !== 'all' && yearKey(item.year) !== year) return false
       if (!keyword) return true
       return [
         item.title,
@@ -93,7 +94,7 @@ export function LibraryPage() {
         ...item.tags,
         regionLabel(item.type, item.country),
         countryName(item.country),
-        decadeLabel(decadeKey(item.year)),
+        item.year ? String(item.year) : '年份未知',
       ]
         .filter(Boolean)
         .join(' ')
@@ -106,15 +107,15 @@ export function LibraryPage() {
       if (sort === 'title') return a.title.localeCompare(b.title, 'zh-CN')
       return b.updatedAt - a.updatedAt
     })
-  }, [all, query, type, status, country, decade, sort])
+  }, [all, query, type, status, country, year, sort])
 
   const groups = useMemo(() => {
     if (groupBy === 'none') return []
     const map = new Map<string, MediaItem[]>()
     for (const item of filtered) {
       const key =
-        groupBy === 'decade'
-          ? decadeKey(item.year)
+        groupBy === 'year'
+          ? yearKey(item.year)
           : groupBy === 'country'
             ? (item.country ?? 'unknown')
             : item.type
@@ -124,7 +125,7 @@ export function LibraryPage() {
     }
     const entries = [...map.entries()]
     entries.sort((a, b) => {
-      if (groupBy === 'decade') return decadeRank(a[0]) - decadeRank(b[0])
+      if (groupBy === 'year') return yearRank(b[0]) - yearRank(a[0])
       if (groupBy === 'type') {
         const order = MEDIA_TYPES.findIndex((entry) => entry.value === a[0])
         const other = MEDIA_TYPES.findIndex((entry) => entry.value === b[0])
@@ -136,8 +137,8 @@ export function LibraryPage() {
       key,
       items: list,
       label:
-        groupBy === 'decade'
-          ? decadeLabel(key)
+        groupBy === 'year'
+          ? yearLabel(key)
           : groupBy === 'country'
             ? key === 'unknown'
               ? '地区未标'
@@ -346,15 +347,15 @@ export function LibraryPage() {
             ))}
           </Select>
           <Select
-            value={decade}
-            onChange={(event) => setDecade(event.target.value)}
+            value={year}
+            onChange={(event) => setYear(event.target.value)}
             className="h-9 w-full bg-surface text-[12px] sm:w-[132px]"
-            aria-label="按年代筛选"
+            aria-label="按年份筛选"
           >
-            <option value="all">全部年代</option>
-            {decadeOptions.map((key) => (
+            <option value="all">全部年份</option>
+            {yearOptions.map((key) => (
               <option key={key} value={key}>
-                {decadeLabel(key)}（{decadeCounts.get(key) ?? 0}）
+                {yearLabel(key)}（{yearCounts.get(key) ?? 0}）
               </option>
             ))}
           </Select>
@@ -365,16 +366,16 @@ export function LibraryPage() {
             aria-label="分组方式"
           >
             <option value="none">不分组</option>
-            <option value="decade">按年代分组</option>
+            <option value="year">按年份分组</option>
             <option value="country">按国家分组</option>
             <option value="type">按类型分组</option>
           </Select>
-          {country !== 'all' || decade !== 'all' || groupBy !== 'none' ? (
+          {country !== 'all' || year !== 'all' || groupBy !== 'none' ? (
             <button
               type="button"
               onClick={() => {
                 setCountry('all')
-                setDecade('all')
+                setYear('all')
                 setGroupBy('none')
               }}
               className="col-span-3 h-9 rounded-lg px-2 text-[11.5px] text-muted transition-colors hover:text-ink sm:col-auto"
@@ -408,7 +409,7 @@ export function LibraryPage() {
                     setType('all')
                     setStatus('all')
                     setCountry('all')
-                    setDecade('all')
+                    setYear('all')
                     setGroupBy('none')
                   }}
                 >
@@ -420,7 +421,7 @@ export function LibraryPage() {
             <EmptyState
               icon={LibraryBig}
               title="媒体库还是空的"
-              description="把看过的、在看的、想看的一次收进来。搜索标题就能自动补全封面、CV、地区和年代。"
+              description="把看过的、在看的、想看的一次收进来。搜索标题就能自动补全封面、CV、地区和年份。"
               action={
                 <Button variant="primary" onClick={() => setAddOpen(true)}>
                   <Plus size={15} /> 添加第一个条目

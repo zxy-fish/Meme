@@ -2,7 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { BookOpen, CheckCircle2, Clock3, LibraryBig, Star, Timer, TrendingUp } from 'lucide-react'
 import { Cover } from '@/components/ui/Cover'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { countryName, decadeKey, decadeLabel, decadeRank, regionLabel } from '@/lib/countries'
+import { countryName, regionLabel } from '@/lib/countries'
+import { yearKey, yearLabel, yearRank } from '@/lib/years'
 import { db } from '@/lib/db'
 import {
   dayBuckets,
@@ -75,15 +76,15 @@ export function StatsPage() {
   const doing = all.filter((item) => item.status === 'doing').length
   const topRated = [...rated].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 5)
 
-  const decadeCounts = new Map<string, number>()
+  const yearCounts = new Map<string, number>()
   const countryCounts = new Map<string, number>()
   for (const item of all) {
-    const decade = decadeKey(item.year)
-    decadeCounts.set(decade, (decadeCounts.get(decade) ?? 0) + 1)
+    const key = yearKey(item.year)
+    yearCounts.set(key, (yearCounts.get(key) ?? 0) + 1)
     const region = item.country ?? 'unknown'
     countryCounts.set(region, (countryCounts.get(region) ?? 0) + 1)
   }
-  const decades = [...decadeCounts.entries()].sort((a, b) => decadeRank(a[0]) - decadeRank(b[0]))
+  const years = [...yearCounts.entries()].sort((a, b) => yearRank(b[0]) - yearRank(a[0]))
   const countries = [...countryCounts.entries()].sort((a, b) => b[1] - a[1])
 
   const statusCounts = STATUS_ORDER.map((status) => ({
@@ -227,14 +228,14 @@ export function StatsPage() {
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <Panel title="年代分布">
+            <Panel title="年份分布">
               <div className="space-y-3.5">
-                {decades.map(([key, count]) => {
+                {years.map(([key, count]) => {
                   const width = all.length ? Math.round((count / all.length) * 100) : 0
                   return (
                     <div key={key}>
                       <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
-                        <span className="text-ink-soft">{decadeLabel(key)}</span>
+                        <span className="text-ink-soft">{yearLabel(key)}</span>
                         <span className="tabular-nums text-faint">
                           {count} · {width}%
                         </span>

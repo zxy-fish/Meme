@@ -18,7 +18,8 @@ import { Cover } from '@/components/ui/Cover'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { MediaDialog } from '@/components/media/MediaDialog'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { countryName, decadeKey, decadeLabel, regionLabel } from '@/lib/countries'
+import { countryName, regionLabel } from '@/lib/countries'
+import { yearKey, yearLabel } from '@/lib/years'
 import { db } from '@/lib/db'
 import { bumpProgress, toggleFavorite, updateMedia } from '@/lib/repo'
 import {
@@ -164,7 +165,7 @@ export function MediaDetailPage() {
               <span className="uppercase tracking-[0.14em]">自动分类</span>
               <span className="text-ink-soft">{regionLabel(item.type, item.country)}</span>
               <span>·</span>
-              <span className="text-ink-soft">{decadeLabel(decadeKey(item.year))}</span>
+              <span className="text-ink-soft">{yearLabel(yearKey(item.year))}</span>
               <span>·</span>
               <span className="text-ink-soft">{TYPE_LABELS[item.type]}</span>
             </div>
@@ -380,8 +381,7 @@ export function MediaDetailPage() {
             {[
               ['类型', TYPE_LABELS[item.type]],
               ['状态', STATUS_LABELS[item.status]],
-              ['年份', item.year ? String(item.year) : '—'],
-              ['年代', decadeLabel(decadeKey(item.year))],
+              ['年份', item.year ? `${item.year} 年` : '—'],
               [
                 '国家 / 地区',
                 item.country ? `${countryName(item.country)} · ${regionLabel(item.type, item.country)}` : '—',

@@ -108,27 +108,3 @@ export function regionLabel(type: MediaType, code?: string): string {
   if (code === 'CN') return '国产小说'
   return `${countryName(code)}小说`
 }
-
-export const UNKNOWN_DECADE = 'unknown'
-
-export function decadeKey(year?: number): string {
-  if (!year || year <= 0) return UNKNOWN_DECADE
-  if (year < 1980) return 'earlier'
-  return String(Math.floor(year / 10) * 10)
-}
-
-export function decadeLabel(key: string): string {
-  if (key === UNKNOWN_DECADE) return '年代未知'
-  if (key === 'earlier') return '更早'
-  const year = Number(key)
-  if (!Number.isFinite(year)) return '年代未知'
-  if (year >= 2000) return `${year}年代`
-  return `${String(year).slice(2)}年代`
-}
-
-export const DECADE_ORDER = ['2020', '2010', '2000', '1990', '1980', 'earlier', UNKNOWN_DECADE]
-
-export function decadeRank(key: string): number {
-  const index = DECADE_ORDER.indexOf(key)
-  return index === -1 ? DECADE_ORDER.length : index
-}

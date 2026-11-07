@@ -89,7 +89,7 @@ test('imports a TXT and opens it in the reader', async ({ page }) => {
 })
 
 
-test('classifies a TV entry by country and decade', async ({ page }) => {
+test('classifies a TV entry by country and year', async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto('/')
   await page.getByRole('button', { name: '添加条目' }).click()
@@ -109,18 +109,18 @@ test('classifies a TV entry by country and decade', async ({ page }) => {
   await expect(page.getByText('测试日剧').first()).toBeVisible()
 
   await page.selectOption('select[aria-label="按国家或地区筛选"]', 'JP')
-  await page.selectOption('select[aria-label="按年代筛选"]', '2020')
+  await page.selectOption('select[aria-label="按年份筛选"]', '2024')
   await expect(page.getByText('测试日剧').first()).toBeVisible()
   expect(errors).toEqual([])
 })
 
-test('stats include decade and country breakdowns', async ({ page }) => {
+test('stats include year and country breakdowns', async ({ page }) => {
   await page.goto('/#/stats')
   await expect(page.getByRole('heading', { name: '统计' })).toBeVisible()
-  await expect(page.getByText('年代分布')).toBeVisible()
+  await expect(page.getByText('年份分布')).toBeVisible()
   await expect(page.getByText('国家 / 地区')).toBeVisible()
   await expect(page.getByText('日剧').first()).toBeVisible()
-  await expect(page.getByText('2020年代').first()).toBeVisible()
+  await expect(page.getByText('2014 年').first()).toBeVisible()
 })
 
 
@@ -162,7 +162,9 @@ test('imports a PDF, links it to a new media item and renders pages', async ({ p
   await expect(page.getByText(/1 \/ 2/)).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: '下一页' }).click()
   await expect(page.getByText(/2 \/ 2/)).toBeVisible()
-  await page.waitForTimeout(800)
+  // Let the page-2 write finish before a full navigation (IndexedDB writes
+  // are aborted if the document goes away mid-transaction).
+  await page.waitForTimeout(2_000)
 
   await page.goto('/#/')
   await page.getByText('sample').first().click()

@@ -24,6 +24,7 @@ export function PdfReader({ book }: { book: Book }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>()
   const [rendering, setRendering] = useState(false)
+  const savedOnce = useRef(false)
 
   useEffect(() => {
     const element = viewportRef.current
@@ -122,6 +123,11 @@ export function PdfReader({ book }: { book: Book }) {
 
   useEffect(() => {
     if (!pageCount) return
+    if (!savedOnce.current) {
+      // Opening a PDF on its saved page shouldn't race a quick page turn.
+      savedOnce.current = true
+      return
+    }
     void saveReadingProgress(book.id, 0, page - 1, (page / pageCount) * 100)
   }, [book.id, page, pageCount])
 
