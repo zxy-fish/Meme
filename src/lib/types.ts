@@ -138,6 +138,12 @@ export interface ComicPage {
   mime: string
 }
 
+export interface CachedCover {
+  url: string
+  blob: Blob
+  updatedAt: number
+}
+
 export interface ReadingSession {
   id: string
   bookId: string

@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { db } from '@/lib/db'
 import { saveReadingProgress, updateBook } from '@/lib/repo'
+import { useSaveOnExit } from '@/lib/reader/useSaveOnExit'
 import type { Book } from '@/lib/types'
 import { clamp, cn } from '@/lib/utils'
 
@@ -24,7 +25,7 @@ export function PdfReader({ book }: { book: Book }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>()
   const [rendering, setRendering] = useState(false)
-  const savedOnce = useRef(false)
+  const hasNavigated = useRef(false)
 
   useEffect(() => {
     const element = viewportRef.current
@@ -57,7 +58,12 @@ export function PdfReader({ book }: { book: Book }) {
         if (cancelled) return
         setDocument(loaded)
         setPageCount(loaded.numPages)
-        setPage(clamp((book.lastPage ?? 0) + 1, 1, loaded.numPages))
+        // A page turn can land while the document is still loading. Don't
+        // yank the reader back to the saved page (and then persist it) once
+        // the user has already navigated.
+        if (!hasNavigated.current) {
+          setPage(clamp((book.lastPage ?? 0) + 1, 1, loaded.numPages))
+        }
         if (!book.pageCount) void updateBook(book.id, { pageCount: loaded.numPages })
       } catch (loadError) {
         console.error(loadError)
@@ -122,12 +128,7 @@ export function PdfReader({ book }: { book: Book }) {
   }, [document, page, fit, size])
 
   useEffect(() => {
-    if (!pageCount) return
-    if (!savedOnce.current) {
-      // Opening a PDF on its saved page shouldn't race a quick page turn.
-      savedOnce.current = true
-      return
-    }
+    if (!pageCount || !hasNavigated.current) return
     void saveReadingProgress(book.id, 0, page - 1, (page / pageCount) * 100)
   }, [book.id, page, pageCount])
 
@@ -135,9 +136,11 @@ export function PdfReader({ book }: { book: Book }) {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
         event.preventDefault()
+        hasNavigated.current = true
         setPage((current) => Math.max(1, current - 1))
       } else if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
         event.preventDefault()
+        hasNavigated.current = true
         setPage((current) => Math.min(pageCount || current, current + 1))
       }
     }
@@ -146,6 +149,11 @@ export function PdfReader({ book }: { book: Book }) {
   }, [pageCount])
 
   const percent = pageCount ? (page / pageCount) * 100 : 0
+
+  useSaveOnExit(() => {
+    if (!pageCount || !hasNavigated.current) return
+    void saveReadingProgress(book.id, 0, page - 1, (page / pageCount) * 100)
+  })
 
   return (
     <div className="fixed inset-0 z-0 flex flex-col bg-[#0a0b0d] text-white">
@@ -207,7 +215,10 @@ export function PdfReader({ book }: { book: Book }) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            onClick={() => {
+              hasNavigated.current = true
+              setPage((current) => Math.max(1, current - 1))
+            }}
             disabled={page <= 1}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
             aria-label="上一页"
@@ -219,7 +230,10 @@ export function PdfReader({ book }: { book: Book }) {
             min={1}
             max={Math.max(pageCount, 1)}
             value={page}
-            onChange={(event) => setPage(Number(event.target.value))}
+            onChange={(event) => {
+              hasNavigated.current = true
+              setPage(Number(event.target.value))
+            }}
             className="h-1 w-full flex-1 cursor-pointer appearance-none rounded-full bg-white/15 accent-[var(--accent)]"
             style={{
               background: `linear-gradient(to right, var(--accent) ${percent}%, rgba(255,255,255,.15) ${percent}%)`,
@@ -228,7 +242,10 @@ export function PdfReader({ book }: { book: Book }) {
           />
           <button
             type="button"
-            onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+            onClick={() => {
+              hasNavigated.current = true
+              setPage((current) => Math.min(pageCount, current + 1))
+            }}
             disabled={page >= pageCount}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/60 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30"
             aria-label="下一页"

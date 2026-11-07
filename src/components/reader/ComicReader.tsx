@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { db } from '@/lib/db'
 import { saveReadingProgress, updateBook } from '@/lib/repo'
+import { useSaveOnExit } from '@/lib/reader/useSaveOnExit'
 import type { Book } from '@/lib/types'
 import { clamp, cn } from '@/lib/utils'
 
@@ -27,16 +28,23 @@ export function ComicReader({ book }: { book: Book }) {
   const [gridOpen, setGridOpen] = useState(false)
   const [url, setUrl] = useState<string>()
   const initialized = useRef(false)
-  const savedOnce = useRef(false)
+  const hasNavigated = useRef(false)
   const touchRef = useRef<{ x: number; y: number } | null>(null)
 
   const total = pages?.length ?? book.pageCount ?? 0
   const percent = total ? ((page + 1) / total) * 100 : 0
 
+  useSaveOnExit(() => {
+    if (!total || !initialized.current || !hasNavigated.current) return
+    void saveReadingProgress(book.id, 0, page, percent)
+  })
+
   useEffect(() => {
     if (!pages?.length || initialized.current) return
     initialized.current = true
-    setPage(clamp(book.lastPage ?? 0, 0, pages.length - 1))
+    // Same race as PDF: a fast page turn while pages are still loading
+    // shouldn't be reset (and re-saved) to the stored position.
+    if (!hasNavigated.current) setPage(clamp(book.lastPage ?? 0, 0, pages.length - 1))
   }, [pages, book.lastPage])
 
   useEffect(() => {
@@ -51,19 +59,17 @@ export function ComicReader({ book }: { book: Book }) {
   }, [pages, page])
 
   useEffect(() => {
-    if (!pages?.length || !initialized.current) return
-    if (!savedOnce.current) {
-      savedOnce.current = true
-      return
-    }
+    if (!pages?.length || !initialized.current || !hasNavigated.current) return
     void saveReadingProgress(book.id, 0, page, percent)
   }, [book.id, page, percent, pages?.length])
 
   function goNext() {
+    hasNavigated.current = true
     setPage((current) => Math.min(Math.max(total - 1, 0), current + 1))
   }
 
   function goPrev() {
+    hasNavigated.current = true
     setPage((current) => Math.max(0, current - 1))
   }
 
@@ -230,7 +236,10 @@ export function ComicReader({ book }: { book: Book }) {
             min={0}
             max={Math.max(total - 1, 0)}
             value={page}
-            onChange={(event) => setPage(Number(event.target.value))}
+            onChange={(event) => {
+              hasNavigated.current = true
+              setPage(Number(event.target.value))
+            }}
             className="h-1 w-full flex-1 cursor-pointer appearance-none rounded-full bg-white/15 accent-[var(--accent)]"
             style={{
               background: `linear-gradient(to right, var(--accent) ${percent}%, rgba(255,255,255,.15) ${percent}%)`,
@@ -277,6 +286,7 @@ export function ComicReader({ book }: { book: Book }) {
                 key={index}
                 type="button"
                 onClick={() => {
+                  hasNavigated.current = true
                   setPage(index)
                   setGridOpen(false)
                 }}

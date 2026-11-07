@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { CheckSquare2, Square } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 function renderInline(text: string): ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g)
@@ -35,7 +36,13 @@ function renderInline(text: string): ReactNode[] {
   })
 }
 
-export function NotePreview({ content }: { content: string }) {
+export function NotePreview({
+  content,
+  onToggleTask,
+}: {
+  content: string
+  onToggleTask?: (index: number) => void
+}) {
   if (!content.trim()) {
     return (
       <p className="text-[13px] text-faint">
@@ -43,6 +50,8 @@ export function NotePreview({ content }: { content: string }) {
       </p>
     )
   }
+
+  let taskIndex = 0
 
   return (
     <div className="space-y-2.5 text-[14.5px] leading-[1.9] text-ink-soft">
@@ -88,13 +97,25 @@ export function NotePreview({ content }: { content: string }) {
         const check = trimmed.match(/^- \[( |x|X)\] (.*)$/)
         if (check) {
           const checked = check[1].toLowerCase() === 'x'
+          const current = taskIndex
+          taskIndex += 1
           return (
             <div key={index} className="flex items-start gap-2">
-              {checked ? (
-                <CheckSquare2 size={15} className="mt-1 shrink-0 text-accent" />
-              ) : (
-                <Square size={15} className="mt-1 shrink-0 text-faint" />
-              )}
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={checked}
+                aria-label={checked ? '标记未完成' : '标记完成'}
+                disabled={!onToggleTask}
+                onClick={() => onToggleTask?.(current)}
+                className={cn(
+                  'mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors',
+                  onToggleTask ? 'hover:bg-accent-soft' : 'cursor-default',
+                  checked ? 'text-accent' : 'text-faint',
+                )}
+              >
+                {checked ? <CheckSquare2 size={15} /> : <Square size={15} />}
+              </button>
               <span className={checked ? 'text-faint line-through' : undefined}>
                 {renderInline(check[2])}
               </span>

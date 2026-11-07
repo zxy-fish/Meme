@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useCachedCover } from '@/lib/covers'
 import { cn, gradientFor, initials } from '@/lib/utils'
 
 export function Cover({
@@ -17,6 +18,7 @@ export function Cover({
   eager?: boolean
 }) {
   const [failed, setFailed] = useState(false)
+  const source = useCachedCover(src)
 
   useEffect(() => {
     setFailed(false)
@@ -31,9 +33,9 @@ export function Cover({
         className,
       )}
     >
-      {src && !failed ? (
+      {source && !failed ? (
         <img
-          src={src}
+          src={source}
           alt={title}
           loading={eager ? 'eager' : 'lazy'}
           decoding="async"

@@ -463,6 +463,26 @@ export async function deleteBook(id: string): Promise<void> {
   await db.books.update(id, { deletedAt: now, updatedAt: now })
 }
 
+export async function clearCoverCache(): Promise<void> {
+  await db.covers.clear()
+}
+
+export async function purgeDeletedContent(): Promise<{ books: number; pages: number; contents: number }> {
+  const deleted = await db.books.filter((book) => Boolean(book.deletedAt)).toArray()
+  await Promise.all(deleted.map((book) => purgeBook(book.id)))
+
+  const bookIds = new Set((await db.books.toArray()).map((book) => book.id))
+  const pages = await db.pages.toArray()
+  const orphanPages = pages.filter((page) => !bookIds.has(page.bookId))
+  if (orphanPages.length) await db.pages.bulkDelete(orphanPages.map((page) => page.id))
+
+  const contents = await db.contents.toArray()
+  const orphanContents = contents.filter((content) => !bookIds.has(content.id))
+  if (orphanContents.length) await db.contents.bulkDelete(orphanContents.map((content) => content.id))
+
+  return { books: deleted.length, pages: orphanPages.length, contents: orphanContents.length }
+}
+
 export async function purgeBook(id: string): Promise<void> {
   await db.transaction('rw', db.books, db.contents, db.pages, async () => {
     await db.books.delete(id)
@@ -474,7 +494,7 @@ export async function purgeBook(id: string): Promise<void> {
 export async function resetLibrary(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.media, db.bookmarks, db.books, db.contents, db.notes, db.pages, db.readingSessions],
+    [db.media, db.bookmarks, db.books, db.contents, db.notes, db.pages, db.readingSessions, db.covers],
     async () => {
       await Promise.all([
         db.media.clear(),
@@ -484,6 +504,7 @@ export async function resetLibrary(): Promise<void> {
         db.notes.clear(),
         db.pages.clear(),
         db.readingSessions.clear(),
+        db.covers.clear(),
       ])
     },
   )

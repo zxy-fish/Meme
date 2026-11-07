@@ -58,6 +58,9 @@ export function Sidebar() {
       books: books.filter((item) => !item.deletedAt).length,
       notes: notes.filter((item) => !item.deletedAt).length,
       doing: media.filter((item) => !item.deletedAt && item.status === 'doing').length,
+      recentBook: books
+        .filter((item) => !item.deletedAt && item.lastReadAt && (item.percent ?? 0) < 100)
+        .sort((a, b) => (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0))[0],
     }
   }, [])
 
@@ -144,6 +147,36 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto space-y-3">
+        {counts?.recentBook ? (
+          <Link
+            to={`/read/${counts.recentBook.id}`}
+            className="group block rounded-2xl border border-line bg-surface-2/50 px-3.5 py-3 transition-colors hover:border-accent/30 hover:bg-surface-2"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
+                <BookOpen size={15} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[9px] uppercase tracking-[0.18em] text-faint">
+                  继续阅读
+                </span>
+                <span className="mt-0.5 block truncate text-[12px] font-medium text-ink-soft group-hover:text-ink">
+                  {counts.recentBook.title}
+                </span>
+              </span>
+              <span className="shrink-0 text-[10px] tabular-nums text-faint">
+                {counts.recentBook.percent ?? 0}%
+              </span>
+            </div>
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2">
+              <div
+                className="h-full rounded-full bg-accent"
+                style={{ width: `${Math.max(counts.recentBook.percent ?? 0, 1)}%` }}
+              />
+            </div>
+          </Link>
+        ) : null}
+
         {counts?.doing ? (
           <div className="rounded-2xl border border-line bg-surface-2/50 px-3.5 py-3">
             <p className="text-[10px] uppercase tracking-[0.18em] text-faint">正在追</p>

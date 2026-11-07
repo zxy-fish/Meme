@@ -195,6 +195,22 @@ export function NotesPage() {
     ].filter((group) => group.items.length > 0)
   }, [filtered])
 
+  function toggleTask(taskIndex: number) {
+    if (!selected) return
+    let cursor = -1
+    const next = content.split('\n').map((line) => {
+      const match = line.match(/^(\s*)- \[( |x|X)\] (.*)$/)
+      if (!match) return line
+      cursor += 1
+      if (cursor !== taskIndex) return line
+      const checked = match[2].toLowerCase() === 'x'
+      return `${match[1]}- [${checked ? ' ' : 'x'}] ${match[3]}`
+    })
+    const value = next.join('\n')
+    setContent(value)
+    void updateNote(selected.id, { content: value })
+  }
+
   async function persistNow() {
     if (!selected || draftId !== selected.id) return
     const tags = parseTags(tagsInput)
@@ -471,7 +487,7 @@ export function NotesPage() {
 
                   {preview ? (
                     <div className="mt-5 min-h-[38vh]">
-                      <NotePreview content={content} />
+                      <NotePreview content={content} onToggleTask={toggleTask} />
                     </div>
                   ) : (
                     <>

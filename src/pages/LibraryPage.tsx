@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Filter, LibraryBig, Plus, Search, Sparkles } from 'lucide-react'
+import { ArrowRight, BookOpen, Filter, LibraryBig, Plus, Search, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { FloatingAction } from '@/components/ui/FloatingAction'
 import { Cover } from '@/components/ui/Cover'
@@ -22,7 +22,7 @@ import {
   type MediaStatus,
   type MediaType,
 } from '@/lib/types'
-import { cn, percentOf } from '@/lib/utils'
+import { cn, gradientFor, percentOf, relativeTime } from '@/lib/utils'
 
 type SortKey = 'updated' | 'rating' | 'year' | 'title'
 
@@ -31,6 +31,13 @@ export function LibraryPage() {
     async () => (await db.media.toArray()).filter((item) => !item.deletedAt),
     [],
   )
+  const recentBooks = useLiveQuery(async () => {
+    const list = await db.books.toArray()
+    return list
+      .filter((book) => !book.deletedAt && book.lastReadAt && (book.percent ?? 0) < 100)
+      .sort((a, b) => (b.lastReadAt ?? 0) - (a.lastReadAt ?? 0))
+      .slice(0, 3)
+  }, [])
   const [query, setQuery] = useState('')
   const [type, setType] = useState<MediaType | 'all'>('all')
   const [status, setStatus] = useState<MediaStatus | 'all'>('all')
@@ -240,6 +247,56 @@ export function LibraryPage() {
           </Link>
         ) : null}
       </header>
+
+      {!isFiltering && recentBooks?.length ? (
+        <section className="mt-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-[17px] font-semibold text-ink">继续阅读</h2>
+            <Link
+              to="/books"
+              className="inline-flex items-center gap-1 text-[11px] text-muted transition-colors hover:text-accent"
+            >
+              全部书架 <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto pb-1">
+            {recentBooks.map((book) => (
+              <Link
+                key={book.id}
+                to={`/read/${book.id}`}
+                className="group flex min-w-[250px] flex-1 items-center gap-3 rounded-2xl border border-line bg-surface/50 p-2.5 transition-colors hover:border-accent/30 hover:bg-surface"
+              >
+                <div
+                  className="relative flex h-14 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg text-white shadow-md"
+                  style={{ backgroundImage: gradientFor(book.title) }}
+                >
+                  <BookOpen size={16} className="opacity-80" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium text-ink group-hover:text-accent">
+                    {book.title}
+                  </p>
+                  <p className="mt-0.5 truncate text-[10px] text-faint">
+                    {book.format === 'comic' ? '漫画' : book.format.toUpperCase()}
+                    {' · '}
+                    {book.percent ?? 0}% · {relativeTime(book.lastReadAt)}
+                  </p>
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-surface-2">
+                    <div
+                      className="h-full rounded-full bg-accent"
+                      style={{ width: `${Math.max(book.percent ?? 0, 1)}%` }}
+                    />
+                  </div>
+                </div>
+                <ArrowRight
+                  size={14}
+                  className="shrink-0 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-accent"
+                />
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="mt-7 flex flex-col gap-4">
         <div className="flex items-center gap-2">

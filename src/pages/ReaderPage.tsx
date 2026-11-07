@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { ComicReader } from '@/components/reader/ComicReader'
 import { useReadingTimer } from '@/lib/reader/useReadingTimer'
+import { useSaveOnExit } from '@/lib/reader/useSaveOnExit'
 import { PdfReader } from '@/components/reader/PdfReader'
 import { db } from '@/lib/db'
 import { saveReadingProgress, updateBook } from '@/lib/repo'
@@ -100,6 +101,7 @@ export function ReaderPage() {
   }, [bookId])
 
   useReadingTimer(data?.book ?? undefined)
+  const isTextBook = data?.book?.format === 'txt' || data?.book?.format === 'epub'
 
   const prefs = useSettings((state) => state.reader)
   const setReader = useSettings((state) => state.setReader)
@@ -124,12 +126,12 @@ export function ReaderPage() {
   }, [bookId])
 
   useEffect(() => {
-    if (!data?.book || !data.content || initialized.current) return
+    if (!isTextBook || !data?.book || !data.content || initialized.current) return
     initialized.current = true
     const index = clamp(data.book.lastChapter ?? 0, 0, Math.max(0, data.content.chapters.length - 1))
     setChapterIndex(index)
     setPage(data.book.lastPage ?? 0)
-  }, [data?.book, data?.content])
+  }, [data?.book, data?.content, isTextBook])
 
   const chapters = data?.content?.chapters ?? []
   const chapter = chapters[chapterIndex] ?? chapters[0]
@@ -243,6 +245,7 @@ export function ReaderPage() {
   }, [page, chapterIndex])
 
   useEffect(() => {
+    if (!isTextBook) return
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
@@ -258,17 +261,22 @@ export function ReaderPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [goNext, goPrev])
+  }, [goNext, goPrev, isTextBook])
 
   const activeBookId = data?.book?.id
 
+  useSaveOnExit(() => {
+    if (!isTextBook || !activeBookId || !initialized.current) return
+    void saveReadingProgress(activeBookId, chapterIndex, page, percent)
+  })
+
   useEffect(() => {
-    if (!activeBookId || !initialized.current || layout.width === 0) return
+    if (!isTextBook || !activeBookId || !initialized.current || layout.width === 0) return
     const timer = window.setTimeout(() => {
       void saveReadingProgress(activeBookId, chapterIndex, page, percent)
     }, 700)
     return () => window.clearTimeout(timer)
-  }, [activeBookId, chapterIndex, page, percent, layout.width])
+  }, [activeBookId, chapterIndex, page, percent, layout.width, isTextBook])
 
   const marks = data?.book?.marks ?? []
   const currentMark = marks.find((mark) => mark.chapter === chapterIndex && mark.page === page)

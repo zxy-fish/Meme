@@ -5,6 +5,8 @@ import {
   Database,
   Download,
   ExternalLink,
+  HardDrive,
+  Image as ImageIcon,
   Code2,
   KeyRound,
   Loader2,
@@ -18,13 +20,25 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { db, exportBackup, importBackup } from '@/lib/db'
-import { resetLibrary } from '@/lib/repo'
+import { clearCoverCache, purgeDeletedContent, resetLibrary } from '@/lib/repo'
 import { syncNow, testConnection } from '@/lib/sync/github'
 import { cn, relativeTime } from '@/lib/utils'
 import { useSettings, type Theme } from '@/store/settings'
 import { toast } from '@/store/toast'
 
 type Message = { tone: 'ok' | 'error' | 'info'; text: string }
+
+function formatBytes(bytes?: number): string {
+  if (!bytes || bytes <= 0) return '—'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let value = bytes
+  let index = 0
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024
+    index += 1
+  }
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[index]}`
+}
 
 function Toggle({
   checked,
@@ -78,20 +92,41 @@ export function SettingsPage() {
   const [lastSync, setLastSync] = useState(() => Number(localStorage.getItem('meme:lastSync') ?? 0))
   const [resetConfirm, setResetConfirm] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
+  const [storage, setStorage] = useState<{ usage: number; quota: number }>()
   const counts = useLiveQuery(async () => {
-    const [media, bookmarks, books, notes] = await Promise.all([
+    const [media, bookmarks, books, notes, pages, covers, contents] = await Promise.all([
       db.media.toArray(),
       db.bookmarks.toArray(),
       db.books.toArray(),
       db.notes.toArray(),
+      db.pages.count(),
+      db.covers.count(),
+      db.contents.count(),
     ])
     return {
       media: media.filter((item) => !item.deletedAt).length,
       bookmarks: bookmarks.filter((item) => !item.deletedAt).length,
       books: books.filter((item) => !item.deletedAt).length,
       notes: notes.filter((item) => !item.deletedAt).length,
+      deleted: books.filter((item) => item.deletedAt).length,
+      pages,
+      covers,
+      contents,
     }
-  }, []) ?? { media: 0, bookmarks: 0, books: 0, notes: 0 }
+  }, []) ?? { media: 0, bookmarks: 0, books: 0, notes: 0, deleted: 0, pages: 0, covers: 0, contents: 0 }
+
+  async function refreshStorage() {
+    try {
+      const estimate = await navigator.storage?.estimate?.()
+      setStorage({ usage: estimate?.usage ?? 0, quota: estimate?.quota ?? 0 })
+    } catch {
+      setStorage({ usage: 0, quota: 0 })
+    }
+  }
+
+  useEffect(() => {
+    void refreshStorage()
+  }, [])
 
   useEffect(() => {
     const onSynced = () => setLastSync(Number(localStorage.getItem('meme:lastSync') ?? 0))
@@ -153,12 +188,30 @@ export function SettingsPage() {
         throw new Error('不是有效的 Meme 备份文件')
       }
       await importBackup(parsed)
+      await refreshStorage()
       toast('备份已合并', 'success')
     } catch (error) {
       toast((error as Error).message || '导入失败', 'error')
     } finally {
       if (importRef.current) importRef.current.value = ''
     }
+  }
+
+  async function handleCleanup() {
+    const result = await purgeDeletedContent()
+    await refreshStorage()
+    toast(
+      result.books
+        ? `已清理 ${result.books} 本已删除书籍和 ${result.pages} 页残留图片`
+        : '没有需要清理的残留内容',
+      'success',
+    )
+  }
+
+  async function handleClearCovers() {
+    await clearCoverCache()
+    await refreshStorage()
+    toast('封面缓存已清理', 'success')
   }
 
   async function handleReset() {
@@ -394,7 +447,47 @@ export function SettingsPage() {
             />
           </div>
           <p className="mt-3 text-[11px] text-faint">
-            当前：{counts.media} 条目 · {counts.bookmarks} 书签 · {counts.books} 本书 · {counts.notes} 条备忘录。导出包含条目、备忘录与阅读进度，不包含书籍正文。
+            当前：{counts.media} 条目 · {counts.bookmarks} 书签 · {counts.books} 本书 · {counts.notes} 条备忘录。导出包含条目、备忘录、阅读进度和阅读时长，不包含书籍正文。
+          </p>
+        </section>
+
+        <section className="rounded-2xl border border-line bg-surface/50 p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <HardDrive size={15} className="text-accent" />
+            <h2 className="text-[12px] font-medium uppercase tracking-[0.16em] text-faint">存储</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              { label: '浏览器已用', value: formatBytes(storage?.usage) },
+              { label: '正文文件', value: `${counts.contents} 个` },
+              { label: '漫画页', value: `${counts.pages} 页` },
+              { label: '封面缓存', value: `${counts.covers} 张` },
+            ].map((entry) => (
+              <div key={entry.label} className="rounded-xl border border-line bg-surface-2/40 px-3 py-2.5">
+                <p className="text-[10px] text-faint">{entry.label}</p>
+                <p className="mt-0.5 font-display text-[16px] font-semibold text-ink">{entry.value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={() => void refreshStorage()}>
+              <RefreshCw size={13} />
+              刷新
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => void handleCleanup()} disabled={!counts.deleted}>
+              <Trash2 size={13} />
+              清理已删除书籍{counts.deleted ? `（${counts.deleted}）` : ''}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => void handleClearCovers()} disabled={!counts.covers}>
+              <ImageIcon size={13} />
+              清空封面缓存
+            </Button>
+          </div>
+          <p className="mt-3 text-[11px] leading-relaxed text-faint">
+            删除书籍会先保留正文，方便误删恢复；清理后正文和漫画页会真正释放。封面缓存只存在本机，不参与同步。
+            {storage?.quota
+              ? ` 浏览器配额约 ${formatBytes(storage.quota)}。`
+              : ''}
           </p>
         </section>
 

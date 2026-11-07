@@ -137,9 +137,12 @@ test('notes can be created, previewed, saved and searched', async ({ page }) => 
   await page.waitForTimeout(900)
   await page.getByRole('button', { name: '预览' }).click()
   await expect(page.getByText('小标题', { exact: true })).toBeVisible()
+  await page.getByRole('checkbox', { name: '标记完成' }).click()
+  await expect(page.getByRole('checkbox', { name: '标记未完成' })).toBeVisible()
 
   await page.getByRole('button', { name: '编辑' }).click()
   await expect(page.getByPlaceholder('标题')).toHaveValue('E2E 备忘录')
+  await expect(page.locator('textarea[placeholder="开始写点什么…"]')).toHaveValue(/- \[x\] 待办事项/)
 
   await page.reload({ waitUntil: 'networkidle' })
   await page.waitForTimeout(900)
@@ -166,11 +169,19 @@ test('imports a PDF, links it to a new media item and renders pages', async ({ p
   // are aborted if the document goes away mid-transaction).
   await page.waitForTimeout(2_000)
 
-  await page.goto('/#/')
-  await page.getByText('sample').first().click()
+  await page.getByRole('button', { name: '返回书架' }).click()
+  await page.getByRole('link', { name: /媒体库/ }).first().click()
+  // Target the library grid card (-> #/item/...) instead of the "继续阅读"
+  // shelf, whose card opens the reader directly and has no 阅读 button.
+  await page.getByRole('main').locator('a[href^="#/item/"]').filter({ hasText: 'sample' }).first().click()
   await page.getByRole('button', { name: '阅读' }).click()
-  await expect(page.getByText('继续阅读')).toBeVisible()
-  await expect(page.getByText(/2 页 · 100%/)).toBeVisible()
+  const readPanel = page.getByRole('main')
+  await expect(readPanel.getByText('继续阅读')).toBeVisible()
+  await expect(readPanel.getByText(/2 页 · 100%/)).toBeVisible()
+  // Reopening the book must restore page 2 (a late PDF load used to reset it
+  // to page 1 and overwrite the saved progress with 50%).
+  await readPanel.getByRole('link', { name: /继续阅读/ }).first().click()
+  await expect(page.getByText(/2 \/ 2/)).toBeVisible({ timeout: 20_000 })
   expect(errors).toEqual([])
 })
 
@@ -199,6 +210,68 @@ test('records reading time and shows it in stats', async ({ page }) => {
   await expect(page.getByText('阅读时间', { exact: true })).toBeVisible()
   await expect(page.getByText('最近 14 天')).toBeVisible()
   await expect(page.getByText('今日', { exact: true })).toBeVisible()
+})
+
+
+test('continues reading from the library and saves on exit', async ({ page }) => {
+  await page.goto('/#/books')
+  await page.getByRole('link', { name: /夜航书店/ }).first().click()
+  await expect(page.getByRole('heading', { name: /第一章 凌晨的书店/ })).toBeVisible()
+  await page.getByRole('button', { name: '返回书架' }).click()
+  await page.getByRole('link', { name: /媒体库/ }).first().click()
+  await expect(page.getByRole('heading', { name: '继续阅读' })).toBeVisible()
+  await page.getByRole('link', { name: /夜航书店/ }).first().click()
+  await expect(page.getByRole('heading', { name: /第一章 凌晨的书店/ })).toBeVisible()
+})
+
+
+test('caches covers and cleans deleted content', async ({ page }) => {
+  const errors = watchErrors(page)
+  await page.goto('/#/')
+  await expect(page.getByRole('heading', { name: '我的媒体库' })).toBeVisible()
+  await page.waitForTimeout(800)
+  await page.evaluate(async () => {
+    const open = () =>
+      new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('meme')
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+    const db = await open()
+    const tx = db.transaction('media', 'readwrite')
+    const store = tx.objectStore('media')
+    const all = await new Promise<any[]>((resolve, reject) => {
+      const request = store.getAll()
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    if (all[0]) {
+      all[0].cover = location.origin + '/covers/interstellar.jpg'
+      store.put(all[0])
+    }
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  })
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(1_500)
+  await page.goto('/#/settings')
+  await expect(page.getByText('存储', { exact: true })).toBeVisible()
+  await expect(page.getByText('1 张', { exact: true }).first()).toBeVisible()
+  await page.getByRole('button', { name: /清空封面缓存/ }).click()
+  await expect(page.getByText('0 张', { exact: true }).first()).toBeVisible()
+
+  await page.goto('/#/books')
+  const card = page.locator('article').filter({ hasText: '夜航书店' }).first()
+  await card.hover()
+  await card.getByRole('button', { name: '删除书籍' }).click()
+  await card.getByRole('button', { name: '删除书籍' }).click()
+  await page.goto('/#/settings')
+  await page.getByRole('button', { name: /清理已删除书籍/ }).click()
+  await expect(page.getByText(/已清理 1 本/)).toBeVisible()
+  expect(errors).toEqual([])
 })
 
 test.describe('mobile', () => {
