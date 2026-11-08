@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, Plus, Search, Sparkles, Trash2 } from 'lucide-react'
+import { Check, Loader2, Plus, Search, Sparkles, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Cover } from '@/components/ui/Cover'
 import { Dialog } from '@/components/ui/Dialog'
-import { Field, Input, Select, Textarea } from '@/components/ui/Input'
+import { Field, Input, Textarea } from '@/components/ui/Input'
+import { SelectMenu } from '@/components/ui/SelectMenu'
 import { RatingPicker } from '@/components/ui/StatusBadge'
 import { COUNTRIES, regionLabel } from '@/lib/countries'
 import { yearKey, yearLabel } from '@/lib/years'
@@ -137,13 +138,18 @@ export function MediaDialog({
   const [loadingId, setLoadingId] = useState<string>()
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [searchType, setSearchType] = useState<MediaType | 'all'>('all')
+  const [quickAdding, setQuickAdding] = useState<string>()
+  const [quickAdded, setQuickAdded] = useState<string[]>([])
 
   useEffect(() => {
     if (!open) return
     setForm(toForm(initial, initial?.type ?? defaultType))
     setTab(initial ? 'form' : 'search')
     setQuery(initial?.title ?? '')
+    setSearchType('all')
     setResults([])
+    setQuickAdded([])
     setError(undefined)
     setWarning(undefined)
     setConfirmDelete(false)
@@ -159,7 +165,7 @@ export function MediaDialog({
     setError(undefined)
     setWarning(undefined)
     try {
-      const response = await searchMetadata(query.trim(), form.type, { tmdbKey })
+      const response = await searchMetadata(query.trim(), searchType, { tmdbKey })
       setResults(response.results)
       setProvider(response.provider)
       setWarning(response.warning)
@@ -203,6 +209,41 @@ export function MediaDialog({
       setError((detailError as Error).message)
     } finally {
       setLoadingId(undefined)
+    }
+  }
+
+  async function quickAdd(result: MetaSearchResult) {
+    const key = `${result.provider}-${result.id}`
+    setQuickAdding(key)
+    try {
+      const draft = await fetchMetadata(result, result.type, { tmdbKey })
+      await createMedia({
+        type: result.type,
+        title: draft.title || result.title,
+        originalTitle: draft.originalTitle,
+        cover: draft.cover,
+        year: draft.year,
+        country: draft.country,
+        status: 'wish',
+        rating: draft.score ? Math.round(draft.score) : undefined,
+        progressCurrent: 0,
+        progressTotal: draft.total,
+        progressUnit: draft.unit,
+        tags: draft.tags,
+        synopsis: draft.synopsis,
+        sourceUrl: draft.sourceUrl,
+        characters: draft.characters,
+        cast: draft.cast,
+        genres: draft.genres,
+        studios: draft.studios,
+        externalIds: draft.externalIds,
+      })
+      setQuickAdded((prev) => [...prev, key])
+      toast(`已加入「${draft.title || result.title}」`, 'success')
+    } catch (addError) {
+      toast((addError as Error).message, 'error')
+    } finally {
+      setQuickAdding(undefined)
     }
   }
 
@@ -328,25 +369,26 @@ export function MediaDialog({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="text-[11px] text-faint">类型</span>
-              <Select
-                value={form.type}
-                onChange={(event) => {
-                  const type = event.target.value as MediaType
-                  patch({ type, progressUnit: UNIT_BY_TYPE[type] })
+              <SelectMenu
+                value={searchType}
+                onChange={(value) => {
+                  const type = value as MediaType | 'all'
+                  setSearchType(type)
+                  if (type !== 'all') patch({ type, progressUnit: UNIT_BY_TYPE[type] })
                   setResults([])
                   setError(undefined)
                   setWarning(undefined)
                 }}
-                className="h-8 w-[108px] bg-surface-2 text-[12px]"
-              >
-                {MEDIA_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </Select>
+                options={[
+                  { value: 'all', label: '全部类型' },
+                  ...MEDIA_TYPES.map((type) => ({ value: type.value, label: type.label })),
+                ]}
+                className="w-[124px]"
+                size="sm"
+                ariaLabel="搜索类型"
+              />
             </div>
-            <span className="text-[10.5px] text-faint">先选类型，再搜标题</span>
+            <span className="text-[10.5px] text-faint">不选类型时会搜全部类型</span>
           </div>
 
           <div className="flex gap-2">
@@ -358,7 +400,7 @@ export function MediaDialog({
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') runSearch()
                 }}
-                placeholder="搜番剧、电视剧、电影…"
+                placeholder="搜番剧、电视剧、电影、小说、漫画…"
                 className="h-11 pl-9"
                 autoFocus
               />
@@ -372,7 +414,9 @@ export function MediaDialog({
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-faint">
             <span className="rounded-full bg-surface-2 px-2 py-0.5">
               {providerLabel(displayProvider)} ·{' '}
-              {MEDIA_TYPES.find((type) => type.value === form.type)?.label}
+              {searchType === 'all'
+                ? '全部类型'
+                : MEDIA_TYPES.find((type) => type.value === searchType)?.label}
             </span>
             {provider === 'anilist' ? <span>已切换 AniList 兜底</span> : null}
             {form.type === 'movie' || form.type === 'tv' ? (
@@ -409,39 +453,64 @@ export function MediaDialog({
           ) : null}
 
           <div className="max-h-[42vh] space-y-1.5 overflow-y-auto pr-1">
-            {results.map((result) => (
-              <button
-                key={`${result.provider}-${result.id}`}
-                type="button"
-                onClick={() => chooseResult(result)}
-                disabled={Boolean(loadingId)}
-                className="flex w-full items-center gap-3 rounded-xl border border-transparent p-2 text-left transition-colors hover:border-line hover:bg-surface-2 disabled:opacity-60"
-              >
-                <Cover
-                  src={result.cover}
-                  title={result.title}
-                  className="h-16 w-11 shrink-0"
-                  rounded="rounded-md"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13.5px] font-medium text-ink">{result.title}</span>
-                  <span className="mt-0.5 block truncate text-[11px] text-muted">
-                    {[result.subtitle, result.originalTitle].filter(Boolean).join(' · ') || '—'}
-                  </span>
-                  <span className="mt-1 flex items-center gap-2 text-[10.5px] text-faint">
-                    <span className="rounded bg-surface-2 px-1.5 py-0.5">
-                      {providerLabel(result.provider)}
+            {results.map((result) => {
+              const key = `${result.provider}-${result.id}`
+              const added = quickAdded.includes(key)
+              return (
+                <div
+                  key={key}
+                  className="flex items-stretch rounded-xl border border-transparent transition-colors hover:border-line hover:bg-surface-2"
+                >
+                  <button
+                    type="button"
+                    onClick={() => chooseResult(result)}
+                    disabled={Boolean(loadingId)}
+                    className="flex min-w-0 flex-1 items-center gap-3 p-2 text-left disabled:opacity-60"
+                  >
+                    <Cover
+                      src={result.cover}
+                      title={result.title}
+                      className="h-16 w-11 shrink-0"
+                      rounded="rounded-md"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13.5px] font-medium text-ink">{result.title}</span>
+                      <span className="mt-0.5 block truncate text-[11px] text-muted">
+                        {[result.subtitle, result.originalTitle].filter(Boolean).join(' · ') || '—'}
+                      </span>
+                      <span className="mt-1 flex items-center gap-2 text-[10.5px] text-faint">
+                        <span className="rounded bg-surface-2 px-1.5 py-0.5">
+                          {providerLabel(result.provider)}
+                        </span>
+                        {result.score ? <span className="text-accent">★ {result.score.toFixed(1)}</span> : null}
+                      </span>
                     </span>
-                    {result.score ? <span className="text-accent">★ {result.score.toFixed(1)}</span> : null}
-                  </span>
-                </span>
-                {loadingId === result.id ? (
-                  <Loader2 size={16} className="animate-spin text-accent" />
-                ) : (
-                  <Plus size={16} className="text-faint" />
-                )}
-              </button>
-            ))}
+                    {loadingId === result.id ? (
+                      <Loader2 size={16} className="animate-spin text-accent" />
+                    ) : null}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void quickAdd(result)}
+                    disabled={Boolean(quickAdding) || added}
+                    aria-label={`一键添加 ${result.title}`}
+                    title="一键加入媒体库"
+                    className={cn(
+                      'm-1 flex w-9 shrink-0 items-center justify-center rounded-lg transition-colors',
+                      added ? 'text-accent' : 'text-faint hover:bg-surface-3 hover:text-accent',
+                    )}
+                  >
+                    {quickAdding === key ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : added ? (
+                      <Check size={15} />
+                    ) : (
+                      <Plus size={15} />
+                    )}
+                  </button>
+                </div>
+              )
+            })}
           </div>
 
           {!results.length && !error && !searching ? (
@@ -474,31 +543,23 @@ export function MediaDialog({
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="类型">
-                  <Select
+                  <SelectMenu
                     value={form.type}
-                    onChange={(event) => {
-                      const type = event.target.value as MediaType
+                    onChange={(value) => {
+                      const type = value as MediaType
                       patch({ type, progressUnit: UNIT_BY_TYPE[type] })
                     }}
-                  >
-                    {MEDIA_TYPES.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </Select>
+                    options={MEDIA_TYPES.map((type) => ({ value: type.value, label: type.label }))}
+                    ariaLabel="类型"
+                  />
                 </Field>
                 <Field label="状态">
-                  <Select
+                  <SelectMenu
                     value={form.status}
-                    onChange={(event) => patch({ status: event.target.value as MediaStatus })}
-                  >
-                    {STATUS_ORDER.map((status) => (
-                      <option key={status} value={status}>
-                        {STATUS_LABELS[status]}
-                      </option>
-                    ))}
-                  </Select>
+                    onChange={(value) => patch({ status: value as MediaStatus })}
+                    options={STATUS_ORDER.map((status) => ({ value: status, label: STATUS_LABELS[status] }))}
+                    ariaLabel="状态"
+                  />
                 </Field>
               </div>
             </div>
@@ -529,32 +590,27 @@ export function MediaDialog({
               />
             </Field>
             <Field label="单位">
-              <Select
+              <SelectMenu
                 value={form.progressUnit}
-                onChange={(event) => patch({ progressUnit: event.target.value as ProgressUnit })}
-              >
-                {Object.entries(UNIT_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
+                onChange={(value) => patch({ progressUnit: value as ProgressUnit })}
+                options={Object.entries(UNIT_LABELS).map(([value, label]) => ({ value, label }))}
+                ariaLabel="进度单位"
+              />
             </Field>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="国家 / 地区" hint="用于「日剧」「美剧」这类分类">
-              <Select
+              <SelectMenu
                 value={form.country}
-                onChange={(event) => patch({ country: event.target.value })}
-              >
-                <option value="">未标注</option>
-                {COUNTRIES.map((country) => (
-                  <option key={country.code} value={country.code}>
-                    {country.name}
-                  </option>
-                ))}
-              </Select>
+                onChange={(value) => patch({ country: value })}
+                options={[
+                  { value: '', label: '未标注' },
+                  ...COUNTRIES.map((country) => ({ value: country.code, label: country.name })),
+                ]}
+                panelClassName="max-h-72"
+                ariaLabel="国家或地区"
+              />
             </Field>
             <Field label="自动分类" hint="由年份和地区生成">
               <div className="flex h-10 items-center gap-2 rounded-xl border border-line bg-surface-2/60 px-3 text-[12px] text-ink-soft">

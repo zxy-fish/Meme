@@ -14,12 +14,12 @@ import {
   Tv,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { SelectMenu } from '@/components/ui/SelectMenu'
 import { Cover } from '@/components/ui/Cover'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { MediaDialog } from '@/components/media/MediaDialog'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { countryName, regionLabel } from '@/lib/countries'
-import { yearKey, yearLabel } from '@/lib/years'
 import { db } from '@/lib/db'
 import { bumpProgress, toggleFavorite, updateMedia } from '@/lib/repo'
 import {
@@ -71,6 +71,15 @@ export function MediaDetailPage() {
 
   const progress = percentOf(item.progressCurrent, item.progressTotal)
   const unit = UNIT_LABELS[item.progressUnit]
+
+  // Tags that just repeat the header chips (region / type / country / year)
+  // would otherwise show the same word three times.
+  const chipLabels = new Set(
+    [regionLabel(item.type, item.country), countryName(item.country), TYPE_LABELS[item.type]].filter(
+      Boolean,
+    ) as string[],
+  )
+  const visibleTags = item.tags.filter((tag) => !chipLabels.has(tag) && !/^\d{4}$/.test(tag))
 
   const tabs: { value: Tab; label: string; count?: number }[] = [
     { value: 'synopsis', label: '简介' },
@@ -151,9 +160,9 @@ export function MediaDetailPage() {
               <p className="mt-1 text-[13px] text-muted">{item.originalTitle}</p>
             ) : null}
 
-            {item.tags.length ? (
+            {visibleTags.length ? (
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {item.tags.map((tag) => (
+                {visibleTags.map((tag) => (
                   <span key={tag} className="rounded-full bg-surface-2 px-2.5 py-1 text-[11px] text-ink-soft">
                     {tag}
                   </span>
@@ -161,27 +170,17 @@ export function MediaDetailPage() {
               </div>
             ) : null}
 
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[10.5px] text-faint">
-              <span className="uppercase tracking-[0.14em]">自动分类</span>
-              <span className="text-ink-soft">{regionLabel(item.type, item.country)}</span>
-              <span>·</span>
-              <span className="text-ink-soft">{yearLabel(yearKey(item.year))}</span>
-              <span>·</span>
-              <span className="text-ink-soft">{TYPE_LABELS[item.type]}</span>
-            </div>
-
             <div className="mt-5 flex flex-wrap items-center gap-2">
-              <select
+              <SelectMenu
                 value={item.status}
-                onChange={(event) => setStatus(event.target.value as MediaStatus)}
-                className="h-9 rounded-lg border border-line bg-surface-2 px-2.5 text-[12px] text-ink"
-              >
-                {STATUS_ORDER.map((status) => (
-                  <option key={status} value={status}>
-                    {STATUS_LABELS[status]}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => setStatus(value as MediaStatus)}
+                options={STATUS_ORDER.map((status) => ({
+                  value: status,
+                  label: STATUS_LABELS[status],
+                }))}
+                className="w-[104px]"
+                ariaLabel="修改状态"
+              />
               <Button
                 size="sm"
                 variant={item.favorite ? 'soft' : 'secondary'}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ArrowRight, BookOpen, Filter, LibraryBig, Plus, Search, Sparkles } from 'lucide-react'
@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button'
 import { FloatingAction } from '@/components/ui/FloatingAction'
 import { Cover } from '@/components/ui/Cover'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Input, Select } from '@/components/ui/Input'
+import { Input } from '@/components/ui/Input'
+import { SelectMenu } from '@/components/ui/SelectMenu'
 import { MediaCard } from '@/components/media/MediaCard'
 import { MediaDialog } from '@/components/media/MediaDialog'
 import { countryName, regionLabel } from '@/lib/countries'
@@ -53,46 +54,14 @@ export function LibraryPage() {
   const isFiltering =
     Boolean(query.trim()) || type !== 'all' || status !== 'all' || country !== 'all' || year !== 'all'
 
-  const counts = useMemo(() => {
-    const map = new Map<MediaType, number>()
-    for (const item of all) map.set(item.type, (map.get(item.type) ?? 0) + 1)
-    return map
-  }, [all])
+  const keyword = query.trim().toLowerCase()
 
-  const countryCounts = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const item of all) {
-      const key = item.country ?? 'unknown'
-      map.set(key, (map.get(key) ?? 0) + 1)
-    }
-    return map
-  }, [all])
-
-  const yearCounts = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const item of all) {
-      const key = yearKey(item.year)
-      map.set(key, (map.get(key) ?? 0) + 1)
-    }
-    return map
-  }, [all])
-
-  const countryOptions = useMemo(
-    () => [...countryCounts.entries()].sort((a, b) => b[1] - a[1]),
-    [countryCounts],
-  )
-  const yearOptions = useMemo(
-    () => [...yearCounts.keys()].sort((a, b) => yearRank(b) - yearRank(a)),
-    [yearCounts],
-  )
-
-  const filtered = useMemo(() => {
-    const keyword = query.trim().toLowerCase()
-    const result = all.filter((item) => {
-      if (type !== 'all' && item.type !== type) return false
+  const matches = useCallback(
+    (item: MediaItem, skip?: 'type' | 'country' | 'year') => {
+      if (skip !== 'type' && type !== 'all' && item.type !== type) return false
       if (status !== 'all' && item.status !== status) return false
-      if (country !== 'all' && (item.country ?? 'unknown') !== country) return false
-      if (year !== 'all' && yearKey(item.year) !== year) return false
+      if (skip !== 'country' && country !== 'all' && (item.country ?? 'unknown') !== country) return false
+      if (skip !== 'year' && year !== 'all' && yearKey(item.year) !== year) return false
       if (!keyword) return true
       return [
         item.title,
@@ -107,14 +76,60 @@ export function LibraryPage() {
         .join(' ')
         .toLowerCase()
         .includes(keyword)
-    })
-    return result.sort((a, b) => {
-      if (sort === 'rating') return (b.rating ?? 0) - (a.rating ?? 0)
-      if (sort === 'year') return (b.year ?? 0) - (a.year ?? 0)
-      if (sort === 'title') return a.title.localeCompare(b.title, 'zh-CN')
-      return b.updatedAt - a.updatedAt
-    })
-  }, [all, query, type, status, country, year, sort])
+    },
+    [type, status, country, year, keyword],
+  )
+
+  // Faceted counts: each filter's numbers ignore its own selection but respect
+  // the others, so 「电视剧」下方的地区统计只反映电视剧。
+  const counts = useMemo(() => {
+    const map = new Map<MediaType, number>()
+    for (const item of all) {
+      if (!matches(item, 'type')) continue
+      map.set(item.type, (map.get(item.type) ?? 0) + 1)
+    }
+    return map
+  }, [all, matches])
+
+  const countryCounts = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const item of all) {
+      if (!matches(item, 'country')) continue
+      const key = item.country ?? 'unknown'
+      map.set(key, (map.get(key) ?? 0) + 1)
+    }
+    return map
+  }, [all, matches])
+
+  const yearCounts = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const item of all) {
+      if (!matches(item, 'year')) continue
+      const key = yearKey(item.year)
+      map.set(key, (map.get(key) ?? 0) + 1)
+    }
+    return map
+  }, [all, matches])
+
+  const countryOptions = useMemo(
+    () => [...countryCounts.entries()].sort((a, b) => b[1] - a[1]),
+    [countryCounts],
+  )
+  const yearOptions = useMemo(
+    () => [...yearCounts.keys()].sort((a, b) => yearRank(b) - yearRank(a)),
+    [yearCounts],
+  )
+
+  const filtered = useMemo(
+    () =>
+      all.filter((item) => matches(item)).sort((a, b) => {
+        if (sort === 'rating') return (b.rating ?? 0) - (a.rating ?? 0)
+        if (sort === 'year') return (b.year ?? 0) - (a.year ?? 0)
+        if (sort === 'title') return a.title.localeCompare(b.title, 'zh-CN')
+        return b.updatedAt - a.updatedAt
+      }),
+    [all, matches, sort],
+  )
 
   const groups = useMemo(() => {
     if (groupBy === 'none') return []
@@ -311,16 +326,18 @@ export function LibraryPage() {
           </div>
           <div className="hidden items-center gap-2 sm:flex">
             <Filter size={14} className="text-faint" />
-            <Select
+            <SelectMenu
               value={sort}
-              onChange={(event) => setSort(event.target.value as SortKey)}
-              className="h-10 w-[118px] bg-surface"
-            >
-              <option value="updated">最近更新</option>
-              <option value="rating">评分最高</option>
-              <option value="year">年份最新</option>
-              <option value="title">标题排序</option>
-            </Select>
+              onChange={(value) => setSort(value as SortKey)}
+              options={[
+                { value: 'updated', label: '最近更新' },
+                { value: 'rating', label: '评分最高' },
+                { value: 'year', label: '年份最新' },
+                { value: 'title', label: '标题排序' },
+              ]}
+              className="w-[118px]"
+              ariaLabel="排序方式"
+            />
           </div>
         </div>
 
@@ -390,43 +407,46 @@ export function LibraryPage() {
         </div>
 
         <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center">
-          <Select
+          <SelectMenu
             value={country}
-            onChange={(event) => setCountry(event.target.value)}
-            className="h-9 w-full bg-surface text-[12px] sm:w-[132px]"
-            aria-label="按国家或地区筛选"
-          >
-            <option value="all">全部地区</option>
-            {countryOptions.map(([code, count]) => (
-              <option key={code} value={code}>
-                {code === 'unknown' ? '地区未标' : countryName(code)}（{count}）
-              </option>
-            ))}
-          </Select>
-          <Select
+            onChange={setCountry}
+            options={[
+              { value: 'all', label: '全部地区' },
+              ...countryOptions.map(([code, count]) => ({
+                value: code,
+                label: code === 'unknown' ? '地区未标' : countryName(code),
+                hint: String(count),
+              })),
+            ]}
+            className="w-full sm:w-[132px]"
+            ariaLabel="按国家或地区筛选"
+          />
+          <SelectMenu
             value={year}
-            onChange={(event) => setYear(event.target.value)}
-            className="h-9 w-full bg-surface text-[12px] sm:w-[132px]"
-            aria-label="按年份筛选"
-          >
-            <option value="all">全部年份</option>
-            {yearOptions.map((key) => (
-              <option key={key} value={key}>
-                {yearLabel(key)}（{yearCounts.get(key) ?? 0}）
-              </option>
-            ))}
-          </Select>
-          <Select
+            onChange={setYear}
+            options={[
+              { value: 'all', label: '全部年份' },
+              ...yearOptions.map((key) => ({
+                value: key,
+                label: yearLabel(key),
+                hint: String(yearCounts.get(key) ?? 0),
+              })),
+            ]}
+            className="w-full sm:w-[132px]"
+            ariaLabel="按年份筛选"
+          />
+          <SelectMenu
             value={groupBy}
-            onChange={(event) => setGroupBy(event.target.value as typeof groupBy)}
-            className="h-9 w-full bg-surface text-[12px] sm:w-[138px]"
-            aria-label="分组方式"
-          >
-            <option value="none">不分组</option>
-            <option value="year">按年份分组</option>
-            <option value="country">按国家分组</option>
-            <option value="type">按类型分组</option>
-          </Select>
+            onChange={(value) => setGroupBy(value as typeof groupBy)}
+            options={[
+              { value: 'none', label: '不分组' },
+              { value: 'year', label: '按年份分组' },
+              { value: 'country', label: '按国家分组' },
+              { value: 'type', label: '按类型分组' },
+            ]}
+            className="w-full sm:w-[138px]"
+            ariaLabel="分组方式"
+          />
           {country !== 'all' || year !== 'all' || groupBy !== 'none' ? (
             <button
               type="button"

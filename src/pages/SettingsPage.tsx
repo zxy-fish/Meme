@@ -64,8 +64,8 @@ function Toggle({
     >
       <span
         className={cn(
-          'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
-          checked ? 'translate-x-[22px]' : 'translate-x-0.5',
+          'absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+          checked ? 'translate-x-5' : 'translate-x-0',
         )}
       />
     </button>
@@ -234,14 +234,16 @@ export function SettingsPage() {
   return (
     <div className="animate-fade-up">
       <header className="-mx-4 -mt-6 rounded-b-[2rem] px-4 pb-2 pt-6 sm:-mx-6 sm:px-6 lg:-mx-10 lg:-mt-10 lg:px-10 lg:pt-10">
-        <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-accent">Settings</p>
-        <h1 className="mt-2 font-display text-[34px] font-semibold leading-[1.1] tracking-wide text-ink sm:text-[44px]">
-          设置
-        </h1>
-        <p className="mt-2 text-[13px] text-muted">外观、元数据、同步与备份。</p>
+        <div className="mx-auto max-w-3xl">
+          <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-accent">Settings</p>
+          <h1 className="mt-2 font-display text-[34px] font-semibold leading-[1.1] tracking-wide text-ink sm:text-[44px]">
+            设置
+          </h1>
+          <p className="mt-2 text-[13px] text-muted">外观、元数据、同步与备份。</p>
+        </div>
       </header>
 
-      <div className="mt-7 max-w-3xl space-y-4">
+      <div className="mx-auto mt-7 max-w-3xl space-y-4">
         <section className="rounded-2xl border border-line bg-surface/50 p-5">
           <div className="mb-4 flex items-center gap-2">
             <Sun size={15} className="text-accent" />

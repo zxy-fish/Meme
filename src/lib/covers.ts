@@ -2,16 +2,23 @@ import { useEffect, useState } from 'react'
 import { db } from './db'
 
 const inflight = new Map<string, Promise<Blob | undefined>>()
+// hosts such as lain.bgm.tv send no CORS headers: remember the failure so we
+// do not refetch (and log) for every render.
+const uncacheable = new Set<string>()
 const REMOTE = /^https?:\/\//i
 const MAX_COVER_BYTES = 8 * 1024 * 1024
 
 async function fetchCover(url: string): Promise<Blob | undefined> {
+  if (uncacheable.has(url)) return undefined
   const existing = inflight.get(url)
   if (existing) return existing
   const promise = fetch(url, { mode: 'cors', credentials: 'omit' })
     .then((response) => (response.ok ? response.blob() : undefined))
     .then((blob) => (blob && blob.size > 0 && blob.size <= MAX_COVER_BYTES ? blob : undefined))
-    .catch(() => undefined)
+    .catch(() => {
+      uncacheable.add(url)
+      return undefined
+    })
     .finally(() => inflight.delete(url))
   inflight.set(url, promise)
   return promise

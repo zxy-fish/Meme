@@ -16,12 +16,39 @@ export interface SearchResponse {
   warning?: string
 }
 
+const ALL_TYPES = ['anime', 'tv', 'novel'] as const
+
+/** Search every Bangumi type at once, so a title never hides behind the wrong filter. */
+async function searchAllTypes(
+  query: string,
+  options: ProviderOptions,
+): Promise<SearchResponse> {
+  const groups = await Promise.all(
+    ALL_TYPES.map((type) => searchBangumi(query, type, options).catch(() => [])),
+  )
+  // Keep the head of every type list, otherwise a long anime list would push
+  // the novel / TV matches past the cut-off.
+  const seen = new Set<string>()
+  const results: MetaSearchResult[] = []
+  for (const group of groups) {
+    for (const result of group.slice(0, 8)) {
+      const key = `${result.provider}-${result.id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      results.push(result)
+    }
+  }
+  results.sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+  return { provider: 'bangumi', results: results.slice(0, 18) }
+}
+
 export async function searchMetadata(
   query: string,
-  type: MediaType,
+  type: MediaType | 'all',
   options: ProviderOptions = {},
 ): Promise<SearchResponse> {
   if (!query.trim()) return { provider: 'bangumi', results: [] }
+  if (type === 'all') return searchAllTypes(query.trim(), options)
 
   if (type === 'movie' || type === 'tv') {
     if (options.tmdbKey?.trim()) {
