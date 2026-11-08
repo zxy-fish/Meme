@@ -3,6 +3,8 @@
 [![CI](https://github.com/zxy-fish/Meme/actions/workflows/ci.yml/badge.svg)](https://github.com/zxy-fish/Meme/actions/workflows/ci.yml)
 [![Deploy web](https://github.com/zxy-fish/Meme/actions/workflows/pages.yml/badge.svg)](https://github.com/zxy-fish/Meme/actions/workflows/pages.yml)
 [![Desktop builds](https://github.com/zxy-fish/Meme/actions/workflows/desktop.yml/badge.svg)](https://github.com/zxy-fish/Meme/actions/workflows/desktop.yml)
+[![Release](https://img.shields.io/github/v/release/zxy-fish/Meme)](https://github.com/zxy-fish/Meme/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/zxy-fish/Meme/total)](https://github.com/zxy-fish/Meme/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > 把看过的、在看的、想看的番剧 / 电视剧 / 电影 / 小说 / 漫画和网页，收进一个地方。
@@ -210,6 +212,10 @@ pnpm install
 pnpm dev
 pnpm typecheck && pnpm test && pnpm e2e
 ```
+
+- 提 issue 之前先搜一下有没有重复；模板会引导你带上环境、版本和复现步骤。
+- 安全问题请走私密渠道，见 [SECURITY.md](SECURITY.md)，不要开公开 issue。
+- 参与讨论即表示同意 [行为准则](CODE_OF_CONDUCT.md)。
 
 ## 开源协议
 

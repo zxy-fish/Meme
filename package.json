@@ -54,5 +54,13 @@
     "zustand": "^5.0.16"
   },
   "main": "electron/main.cjs",
-  "author": "zxy-fish"
+  "author": "zxy-fish",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zxy-fish/Meme.git"
+  },
+  "homepage": "https://zxy-fish.github.io/Meme/",
+  "bugs": {
+    "url": "https://github.com/zxy-fish/Meme/issues"
+  }
 }

@@ -1,0 +1,77 @@
+name: 问题反馈
+description: 有东西没按预期工作
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请先确认：已经在 [Issues](https://github.com/zxy-fish/Meme/issues?q=is%3Aissue) 里搜过，没有重复。
+
+        ⚠️ 不要贴 GitHub Token、TMDB API Key、`data/library.json` 的内容。贴之前请先打码。
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 运行环境
+      description: 问题出现在哪里？
+      options:
+        - 网页版（浏览器）
+        - PWA（添加到主屏幕）
+        - macOS 桌面版
+        - Windows 桌面版
+        - 从源码运行（pnpm dev）
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 设置页底部、Release 名或 `git rev-parse --short HEAD` 都可以
+      placeholder: 例如 1.3.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 实际看到的现象，越具体越好
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望的结果
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开「媒体库」
+        2. 点搜索，输入「星际穿越」
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 报错信息 / 截图
+      description: 浏览器控制台、终端输出或截图。桌面版可以贴主进程日志。
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 我确认上面没有包含 Token、API Key 或私人数据
+          required: true

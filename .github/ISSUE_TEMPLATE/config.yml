@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全问题
+    url: https://github.com/zxy-fish/Meme/security/advisories/new
+    about: 请通过私密渠道报告，不要开公开 issue
+  - name: 使用问题 / 讨论
+    url: https://github.com/zxy-fish/Meme/discussions
+    about: 装不上、不知道怎么配置同步之类的问题可以在这里问
