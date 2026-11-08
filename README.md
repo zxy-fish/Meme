@@ -3,6 +3,7 @@
 [![CI](https://github.com/zxy-fish/Meme/actions/workflows/ci.yml/badge.svg)](https://github.com/zxy-fish/Meme/actions/workflows/ci.yml)
 [![Deploy web](https://github.com/zxy-fish/Meme/actions/workflows/pages.yml/badge.svg)](https://github.com/zxy-fish/Meme/actions/workflows/pages.yml)
 [![Desktop builds](https://github.com/zxy-fish/Meme/actions/workflows/desktop.yml/badge.svg)](https://github.com/zxy-fish/Meme/actions/workflows/desktop.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > 把看过的、在看的、想看的番剧 / 电视剧 / 电影 / 小说 / 漫画和网页，收进一个地方。
 > 本地优先，元数据一键补全，手机和电脑同步；内置备忘录和 Kindle 手感的阅读器。
@@ -200,9 +201,24 @@ src/
 - [ ] 当季新番日历
 - [ ] 阅读划线 / 笔记
 
+## 参与开发
+
+欢迎 issue 和 PR。环境要求、命令、提交前的检查见 [CONTRIBUTING.md](CONTRIBUTING.md)：
+
+```bash
+pnpm install
+pnpm dev
+pnpm typecheck && pnpm test && pnpm e2e
+```
+
+## 开源协议
+
+代码以 **MIT** 协议开源，见 [LICENSE](LICENSE)：可以自由使用、修改、分发，包括商用，不附带任何担保。
+
+需要说明的是：**开源的是项目代码，不是你的数据**。媒体库数据仍然只写进你自己配置的私有仓库（默认 `meme-data`），不会进入本仓库；Token 只存在本机 localStorage。
+
 ## 说明
 
 - 本项目只做「记录 + 阅读」，不提供在线播放、采集规则或弹幕。
 - 示例小说《夜航书店》为项目内原创文本，仅用于演示阅读器。
 - 示例海报由 `scripts/gen_assets.py` 生成。
-- 代码 MIT License。
