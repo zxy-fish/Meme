@@ -23,9 +23,9 @@ const secondary = [
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <Link to="/" className="flex items-center gap-3">
-      <span className="relative flex h-10 w-10 items-center justify-center rounded-[13px] bg-accent text-accent-ink shadow-[0_10px_30px_-12px_var(--accent)]">
+      <span className="relative flex h-10 w-10 items-center justify-center rounded-[13px] bg-[#a97021] text-[#fff6eb] shadow-[0_10px_30px_-14px_rgba(169,112,33,0.65)]">
         <span className="font-display text-[26px] font-bold leading-none">m</span>
-        <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-accent-ink" />
+        <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#fff6eb]" />
       </span>
       {!compact ? (
         <span className="leading-tight">

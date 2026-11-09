@@ -1,4 +1,6 @@
-"""Generate the placeholder poster covers and PWA icons.
+"""Generate the placeholder poster covers.
+
+App icons are drawn by scripts/make_icon.py.
 
 Run with the DSH bundled Python (has Pillow + numpy):
   /Users/gongqianyu/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/python/bin/python3 scripts/gen_assets.py
@@ -110,35 +112,11 @@ def make_cover(slug: str, title: str, en: str, kicker: str, c1: str, c2: str, in
     out.save(f"public/covers/{slug}.jpg", quality=91, optimize=True)
 
 
-def make_icon(size: int, maskable: bool = False) -> None:
-    im = Image.new("RGB", (size, size), (11, 12, 15))
-    d = ImageDraw.Draw(im)
-    pad = 0 if maskable else int(size * 0.07)
-    d.rounded_rectangle(
-        [pad, pad, size - pad, size - pad], radius=int(size * 0.22), fill=(232, 176, 106)
-    )
-    f = font(SONG, int(size * 0.58), index=1)
-    bbox = d.textbbox((0, 0), "m", font=f)
-    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    d.text(
-        ((size - tw) / 2 - bbox[0], (size - th) / 2 - bbox[1] - size * 0.02),
-        "m",
-        font=f,
-        fill=(20, 15, 9),
-    )
-    d.ellipse([size * 0.66, size * 0.22, size * 0.77, size * 0.33], fill=(20, 15, 9))
-    suffix = "-maskable" if maskable else ""
-    im.save(f"public/icons/icon-{size}{suffix}.png")
-
-
 def main() -> None:
+    # App icons live in scripts/make_icon.py; this script only does the covers.
     for item in ITEMS:
         make_cover(*item)
         print("cover", item[0])
-    make_icon(192)
-    make_icon(512)
-    make_icon(512, True)
-    print("icons done")
 
 
 if __name__ == "__main__":
