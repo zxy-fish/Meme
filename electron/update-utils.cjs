@@ -34,10 +34,28 @@ function pickMacAsset(files, arch) {
   return zips.find((file) => file.url.includes('arm64') === wantArm) || null
 }
 
+/** REST asset URL. Redirects to release-assets.githubusercontent.com, which is
+ *  reachable on networks where github.com itself is not. */
+function assetApiUrl(repo, assetId) {
+  return `https://api.github.com/repos/${repo}/releases/assets/${assetId}`
+}
+
+/** Look up a release asset by its file name. */
+function findAssetByName(assets, name) {
+  return (assets || []).find((asset) => asset?.name === name) || null
+}
+
 /** latest-mac.yml lists bare file names; build the Releases download URL. */
 function releaseAssetUrl(repo, version, file) {
   const tag = `v${String(version).replace(/^v/i, '')}`
   return `https://github.com/${repo}/releases/download/${tag}/${encodeURIComponent(file)}`
 }
 
-module.exports = { normalizeVersion, isNewer, pickMacAsset, releaseAssetUrl }
+module.exports = {
+  normalizeVersion,
+  isNewer,
+  pickMacAsset,
+  releaseAssetUrl,
+  assetApiUrl,
+  findAssetByName,
+}

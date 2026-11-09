@@ -7,7 +7,8 @@ import { createRequire } from 'node:module'
 import { describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
-const { isNewer, normalizeVersion, pickMacAsset, releaseAssetUrl } = require('../electron/update-utils.cjs')
+const { isNewer, normalizeVersion, pickMacAsset, releaseAssetUrl, assetApiUrl, findAssetByName } =
+  require('../electron/update-utils.cjs')
 
 describe('version comparison', () => {
   it('normalises v-prefixed and short versions', () => {
@@ -45,6 +46,23 @@ describe('mac asset selection', () => {
     expect(releaseAssetUrl('zxy-fish/Meme', '1.2.0', 'Meme-1.2.0-arm64-mac.zip')).toBe(
       'https://github.com/zxy-fish/Meme/releases/download/v1.2.0/Meme-1.2.0-arm64-mac.zip',
     )
+  })
+
+  it('builds the REST asset url used as the github.com-free download path', () => {
+    expect(assetApiUrl('zxy-fish/Meme', 42)).toBe(
+      'https://api.github.com/repos/zxy-fish/Meme/releases/assets/42',
+    )
+  })
+
+  it('matches release assets by file name', () => {
+    const assets = [
+      { id: 1, name: 'latest-mac.yml' },
+      { id: 2, name: 'Meme-1.2.0-arm64-mac.zip' },
+    ]
+    expect(findAssetByName(assets, 'latest-mac.yml')?.id).toBe(1)
+    expect(findAssetByName(assets, 'Meme-1.2.0-arm64-mac.zip')?.id).toBe(2)
+    expect(findAssetByName(assets, 'missing.zip')).toBeNull()
+    expect(findAssetByName(undefined, 'latest-mac.yml')).toBeNull()
   })
 })
 
