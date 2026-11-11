@@ -14,7 +14,7 @@ export function AppShell() {
       <Sidebar />
 
       <div className="lg:pl-[248px]">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-app/80 px-4 backdrop-blur-xl lg:hidden">
+        <header className="safe-top sticky top-0 z-30 flex min-h-14 items-center justify-between border-b border-line bg-app/80 px-4 backdrop-blur-xl lg:hidden">
           <Logo />
           <div className="flex items-center gap-1">
             <Link
@@ -34,7 +34,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[1440px] px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-10">
+        <main className="pb-nav mx-auto w-full max-w-[1440px] px-4 pt-6 sm:px-6 lg:px-10 lg:pt-10">
           <Outlet />
         </main>
       </div>

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Meme</string>
+    <string name="title_activity_main">Meme</string>
+    <string name="package_name">app.meme.library</string>
+    <string name="custom_url_scheme">app.meme.library</string>
+</resources>

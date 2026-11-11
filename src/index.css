@@ -138,8 +138,25 @@
     display: none;
   }
 
+  /* Safe areas: env() covers iOS standalone, --safe-area-inset-* is what
+     Capacitor injects on Android edge-to-edge. */
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px));
+  }
+
   .safe-bottom {
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px));
+  }
+
+  /* Leave room for the fixed bottom nav plus the gesture bar. */
+  .pb-nav {
+    padding-bottom: calc(7rem + max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px)));
+  }
+
+  @media (min-width: 1024px) {
+    .pb-nav {
+      padding-bottom: 4rem;
+    }
   }
 
   .text-balance {

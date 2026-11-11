@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand palette: same brown/cream as the desktop icon. -->
+    <color name="colorPrimary">#A97021</color>
+    <color name="colorPrimaryDark">#0B0C0F</color>
+    <color name="colorAccent">#A97021</color>
+    <color name="splash_background">#A97021</color>
+</resources>

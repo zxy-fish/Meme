@@ -5,7 +5,11 @@ import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import './index.css'
 
-if (location.protocol === 'http:' || location.protocol === 'https:') {
+// The service worker only makes sense for the web build. Inside the Capacitor
+// shell the assets are bundled, and a stale precache would survive an APK
+// update, so skip registration on native.
+const isNative = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.() === true
+if (!isNative && (location.protocol === 'http:' || location.protocol === 'https:')) {
   registerSW({ immediate: true })
 }
 

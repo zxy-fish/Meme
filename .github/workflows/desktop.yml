@@ -63,9 +63,59 @@ jobs:
             release/*.blockmap
           if-no-files-found: error
 
+
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Install SDK packages
+        # The runner image ships the SDK but sdkmanager is not always on PATH.
+        run: |
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          BIN=$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)
+          echo "sdkmanager: $BIN"
+          yes | "$BIN" --licenses > /dev/null || true
+          "$BIN" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec cap sync android
+      - name: Write signing key
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/meme-release.p12"
+      - name: Build APK
+        env:
+          MEME_KEYSTORE: ${{ runner.temp }}/meme-release.p12
+          MEME_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MEME_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MEME_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew assembleRelease --no-daemon
+          VERSION=$(node -p "require('../package.json').version")
+          mkdir -p ../release
+          cp app/build/outputs/apk/release/app-release.apk "../release/Meme-${VERSION}.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meme-android
+          path: release/*.apk
+          if-no-files-found: error
+
   release:
     name: Publish release
-    needs: [macos, windows]
+    # Manual runs only build artifacts; publishing is for tag pushes.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [macos, windows, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -77,6 +127,7 @@ jobs:
         run: |
           test -f artifacts/meme-macos/latest-mac.yml
           test -f artifacts/meme-windows/latest.yml
+          test -n "$(ls artifacts/meme-android/*.apk)"
       - uses: softprops/action-gh-release@v2
         with:
           name: Meme ${{ github.ref_name }}
@@ -88,4 +139,5 @@ jobs:
             artifacts/meme-windows/*.exe
             artifacts/meme-windows/latest.yml
             artifacts/meme-windows/*.blockmap
+            artifacts/meme-android/*.apk
           generate_release_notes: true
