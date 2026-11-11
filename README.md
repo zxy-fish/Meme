@@ -63,17 +63,20 @@ Web 版已经通过 GitHub Pages 部署：
 
 Android Chrome 打开后可以「添加到主屏幕」，当成 App 用。数据存在本机，同步需要按下一节配置 Token。
 
-## 下载桌面版
+## 下载安装
 
-桌面安装包在 [Releases](https://github.com/zxy-fish/Meme/releases/latest) 发布：
+安装包在 [Releases](https://github.com/zxy-fish/Meme/releases/latest) 发布：
 
 | 平台 | 文件 |
 | --- | --- |
 | macOS（Apple Silicon） | `Meme-<版本>-arm64.dmg` |
 | macOS（Intel） | `Meme-<版本>.dmg` |
 | Windows | `Meme-Setup-<版本>.exe` |
+| Android | `Meme-<版本>.apk` |
 
-每个平台同时提供 zip 便携版（`Meme-<版本>-arm64-mac.zip` / `Meme-<版本>-mac.zip`）。
+macOS / Windows 同时提供 zip 便携版（`Meme-<版本>-arm64-mac.zip` / `Meme-<版本>-mac.zip`）。
+
+**Android**：系统要求 Android 7.0（API 24）及以上。APK 用 Capacitor 打包，和网页版是同一份前端，数据仍然存在本机。安装时需要允许「安装未知来源应用」；因为不是在应用商店分发，签名证书是项目自己的，升级时要覆盖安装同一个安装包（不能从别的渠道的 Meme 覆盖）。目前桌面端有应用内更新，Android 端还是手动下载新 APK。
 
 **应用内更新**：从 1.2.0 起，桌面版可以在「设置 → 应用更新」里检查、下载并安装新版本，全程不用离开应用。macOS 不需要 Apple 开发者证书：应用会从 Releases 取 `latest-mac.yml`，下载对应架构的 zip，校验 sha512、核对 Bundle ID 与版本号，再由一个脱离主进程的脚本替换 App 并重新打开（失败会回滚到旧版本）。Windows 由 electron-updater 完成同样的流程。比 1.2.0 更早的版本需要手动装一次。
 
@@ -198,7 +201,7 @@ src/
 - [x] 阅读时长统计（今日 / 本周 / 本月 / 连续天数 / 14 天曲线）
 - [ ] EPUB
 - [x] 桌面端 Electron 安装包（macOS / Windows）
-- [ ] Android APK（当前先用 PWA 添加到主屏幕）
+- [x] Android APK（Capacitor 打包，CI 出包）
 - [ ] Bangumi 收藏导入
 - [ ] 当季新番日历
 - [ ] 阅读划线 / 笔记
