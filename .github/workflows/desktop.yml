@@ -101,6 +101,7 @@ jobs:
           MEME_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cd android
+          chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
           VERSION=$(node -p "require('../package.json').version")
           mkdir -p ../release
