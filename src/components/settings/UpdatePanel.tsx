@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Download, Loader2, RefreshCw, Rocket } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { canSelfUpdate, desktopBridge, type UpdateState } from '@/lib/desktop'
+import { androidUpdateVersion, checkAndroidUpdate, isAndroidApp, startAndroidUpdate } from '@/lib/android-update'
 
 const RELEASES_URL = 'https://github.com/zxy-fish/Meme/releases/latest'
 
@@ -49,6 +50,10 @@ export function UpdatePanel() {
   const [version, setVersion] = useState<string>()
 
   useEffect(() => {
+    if (isAndroidApp) {
+      setVersion(__APP_VERSION__)
+      return
+    }
     if (!canSelfUpdate || !desktopBridge) return
     let alive = true
     void desktopBridge.appInfo().then((info) => {
@@ -65,8 +70,12 @@ export function UpdatePanel() {
   }, [])
 
   // The web build updates itself through the service worker, so this card only
-  // exists in the desktop shell.
-  if (!canSelfUpdate || !desktopBridge) return null
+  // exists in the desktop shell and the Android app.
+  if (isAndroidApp) {
+    // fall through to the shared renderer below
+  } else if (!canSelfUpdate || !desktopBridge) {
+    return null
+  }
 
   const checking =
     busy ||
@@ -77,7 +86,13 @@ export function UpdatePanel() {
   async function check() {
     setBusy(true)
     try {
+      if (isAndroidApp) {
+        setState(await checkAndroidUpdate())
+        return
+      }
       setState(await desktopBridge!.updates.check())
+    } catch (error) {
+      setState({ status: 'error', message: error instanceof Error ? error.message : String(error) })
     } finally {
       setBusy(false)
     }
@@ -86,7 +101,15 @@ export function UpdatePanel() {
   async function download() {
     setBusy(true)
     try {
+      if (isAndroidApp) {
+        setState({ status: 'downloading', percent: 0 })
+        await startAndroidUpdate((percent) => setState({ status: 'downloading', percent }))
+        setState({ status: 'installing', version: androidUpdateVersion(), percent: 100 })
+        return
+      }
       setState(await desktopBridge!.updates.download())
+    } catch (error) {
+      setState({ status: 'error', message: error instanceof Error ? error.message : String(error) })
     } finally {
       setBusy(false)
     }
@@ -109,7 +132,7 @@ export function UpdatePanel() {
           {state.status === 'available' ? (
             <Button size="sm" variant="primary" onClick={() => void download()} disabled={busy}>
               {busy ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-              下载更新
+              {isAndroidApp ? '下载并安装' : '下载更新'}
             </Button>
           ) : state.status === 'downloaded' ? (
             <Button size="sm" variant="primary" onClick={() => void desktopBridge!.updates.install()}>
@@ -149,7 +172,9 @@ export function UpdatePanel() {
         </p>
       ) : (
         <p className="mt-3 text-[10.5px] leading-relaxed text-faint">
-          新版本会先在后台下载并校验；点「重启并安装」后应用会自动替换并重新打开。网页版无需手动更新。
+          {isAndroidApp
+            ? '新版本会下载到应用缓存并校验 sha256，然后交给系统安装器；点「安装」即可覆盖升级。网页版无需手动更新。'
+            : '新版本会先在后台下载并校验；点「重启并安装」后应用会自动替换并重新打开。网页版无需手动更新。'}
         </p>
       )}
     </section>
